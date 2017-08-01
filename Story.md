@@ -9,7 +9,7 @@
 1. 方便生产：系统可以由OEM厂商一键安装，经过测试后直接发往客户
 2. 系统容灾：向客户提供错误恢复功能，可以恢复至最近备份或出厂设置。
 3. 启动迅速：日常启动从SSD启动，保证尽量快速
-4. 使用简洁：启动选项尽量精简，避免错误进入。同时提供二次选项，避免用户错误选择无法恢复。 
+4. 使用简洁：grub启动选项尽量精简，避免错误进入。同时提供二次选项，避免用户错误选择无法恢复。 
 5. 自动友好：提供系统自动备份，自动一致性检查，自动告警功能，减少用户介入
 6. 误操作保护：对于Golden Image设为只读格式，避免误操作。同时提供USB紧急恢复盘，双重恢复机制。 
 
@@ -21,12 +21,12 @@
 
 用户使用流程：
 =============
-1. 正常使用：用户从SSD硬盘启动，正常使用系统。
+1. 正常使用：用户从SSD硬盘启动，选择默认（第一个）grub选项，正常使用系统。
 2. 系统备份：系统每日凌晨自动进行系统备份，用户也可手动执行系统备份命令。
 3. 系统升级：用户上网下载升级包，按照用户指导手册，升级系统。系统升级命令会自动触发系统备份。
 4. 系统恢复：
 							a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复，完成恢复后系统自动重启。
-							b)当系统运行时出现一致性检查告警，可以手动运行系统恢复命令，恢复至出厂设置或者最近一次备份，恢复完成后，无须重启系统。
+							b)当系统运行时出现一致性检查告警，弹出提示框，可选择恢复至出厂设置/最近一次备份，恢复完成后，无须重启系统。
 5. 系统紧急回复：向用户提供USB紧急回复盘（与USB安装盘相同），用于恶劣情况下的系统重新安装。 
 					
 snapshot 设计
@@ -47,48 +47,31 @@ USB安装盘创建
 
 zshield_manufactory.sh脚本基本内容
 ===================
-1. 初始化SSD硬盘，创建/dev/sda1区， 拷贝kernel image到该区，作为系统正常启动/boot区
+1. 初始化SSD硬盘，创建/dev/sda1和sda2区， 拷贝kernel image到sda1区，作为系统正常启动/boot区，sda2为Golden Image启动临时文件系统。
 2. 在SSD上创建pv, vgs, lv-root
 3. 挂载lv-root，解压系统根文件系统至lv-root。 
 4. 更改lv-root下的/etc/fstab
-5. 对硬盘安装grub
-6. 更新grub, 添加Golden Image启动选项。
-3. 如果zshield_recovery为恢复上次备份, 完成以下工作：
-			扫描/dev/sdb硬盘内的vgs和lv
-			将snap0进行merge到lv-root
-			
-具体内容如下：
-if [-z $zshield_recovery]; then 
-	exit
-fi
+5. 对SSD硬盘安装grub，从/boot启动，挂在lv-root文件系统
+6. 更新grub, 添加Golden Image启动选项，正常情况下，依然从/boot区启动，但挂载临时文件系统。
+7. 初始化/dev/sdb的HDD硬盘，创建其他lvm,并对lv-root产生snap0, snap1
+8. 安装完成。
 
-if [ $zshield_recovery == default]; then
-    fdisk /dev/sdb
-    pvcreate /dev/sdb1		
-    vgcreate vgroup /dev/sdb1
-    lvcreate -L 100G -n vgroup lv-root
-    mkfs.ext4 /dev/vgroup/lv-root
-    mkdir /mnt/lv-root
-    mount /dev/vgroup/lv-root/ /mnt/lv-root
-    rsync -avHX / /mnt/lv-root/ --exclude '/mnt'  --exclude '/proc' --exclude '/dev' --exclude '/tmp'
+Golden Image启动和回复过程
+===================
+1. 用户从SSD硬盘启动，选择Golden Image启动（第二个）grub选项
+2. 正常情况下，依然从/boot区启动，但挂载临时文件系统。
+3. 执行python脚本弹出对话框，供客户选择恢复至出厂设置/最近一次备份/退出恢复。对应操作如下：
+	 a)恢复至出场设置：
+				扫描/dev/sdb硬盘内的vgs和lv
+				将snap0进行merge到lv-root
+				重启系统
+	 b)恢复至最近一次备份 
+				扫描/dev/sdb硬盘内的vgs和lv
+				将snap1进行merge到lv-root
+				重启系统
+	 c)退出恢复：
+	      重启系统			
 
-		[Change fstab on target system with new UUID or LABEL, /mnt/lv-root/etc/fstab]
-
-		mount --bind /proc /mnt/lv-root/proc
-		mount --bind /sys /mnt/lv-root/sys
-		mount --bind /dev /mnt/lv-root/dev
-		mount --bind /run /mnt/lv-root/run
-		mount --bind /boot /mnt/lv-root/boot
-		chroot /mnt/lv-root
-
-    grub-install --target=i386-pc --boot-directory=/boot /dev/sdb
-		[update-grub]
-
-elif [$zshield_recovery == latest]; then
-		vgscan
-		lvscan
-    lvconvert --merge /dev/vgroup/snap0
-fi
 
 zshield backup和自动备份dameon工作基本内容
 ===================
@@ -96,34 +79,41 @@ lvremove /dev/lvgroup/snap0
 lvcreate -s -n snap0 -l 100G /dev/lvgroup/snap0
 
 
+/boot 分区的考虑
+================
+由于snapshot无法覆盖/boot分区的备份，考虑使用复制/boot分区，或者使用grub2的/boot容灾机制。
+
+
 示意图
 ============
 
 初始
 
-| CF         | 硬盘|
-|grub        |--:|
-|/boot Golden| |
-|Golden      | |
+| USB         | SSD 硬盘|  HDD 硬盘 |
+|grub         |--:      |						|
+|/boot        |  				|						|
+|File System  | 				|						|
 
 
-OEM厂商初始化安装（或者用户选择回复出场设置）
+OEM厂商初始化安装（或者用户选择USB重新恢复）
 
-| CF         | 硬盘         |
-|grub        | grub:        |
-|/boot Golden| /boot        |
-|Golden      | lv-root      |
-|            | snap0        |
-|            |              |
+| USB         | SSD 硬盘|  HDD 硬盘 |
+|grub         | grub    |	 --:			|
+|/boot        | /boot		|	lv-home		|
+|File System  | /tmp_FS	|	lv-xxx		|
+							| lv-root | snap0			|
+												| snap1			|
 
+出厂时产生snap0, 每日自动更新snap1对lv-root进行备份。系统出错后，可以选择从恢复出厂设置或者最近一次备份
 
-每日自动更新snap0对lv-root进行备份。系统出错后，可以选择从snap0恢复最近一次备份。
+恢复出厂设置或者最近一次备份
 
-
-| CF         | 硬盘                        |
-|grub        |grub:                        |
-|/boot Golden| /boot system                |
-|Golden      | lv-root + merge snap0       |
+| USB         | SSD 硬盘						|  HDD 硬盘 |
+|grub         | grub    						|	 --:			|
+|/boot        | /boot								|	lv-home		|
+|File System  | /tmp_FS							|	lv-xxx		|
+							| lv-root+snap0/snap1 | snap0			|
+																		| snap1			|
 
 
 LVM snapshot 介绍
