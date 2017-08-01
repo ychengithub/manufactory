@@ -1,27 +1,124 @@
 
 基本硬件配置
 ============
-
-1. CompactFlash：（sata接口）容量32G/64G/128G都选
+1. CompactFlash(SATA接口）：容量32G以上
 2. 硬盘：(LSI raid card)，系统盘容量500G(LVM分区）。其他还有两个LVM分区：用户区、审计区（存放日志）
 
 生产流程：
 ==========
-1. 志翔（Zshield）将系统拷贝到CompactFlash，邮寄给OEM厂商。
-2. OEM厂商安装CompactFlash，初始化系统，运行出厂测试程序
+1. 志翔（Zshield）向OEM厂商提供硬盘镜像文件（硬盘镜像文件，在原型系统完成后，通过"dd if=/dev/sdb of=CF_image.img"获得），由OEM厂商dd到CompactFlash。
+2. OEM厂商从CompactFlash启动，自动完成系统初始化安装，并运行出厂测试程序
 3. 测试通过后，直接发货给客户
 
 用户使用流程：
 =============
-1. 上电正常使用
-2. 升级系统：用户上网下载升级包，通过web管理页面升级系统
-3. Rescue流程：因各种原因，当用户升级失败时，可以通过选抢救选项，从Golden Image启动，再重新升级。
+1. 正常情况下，用户从硬盘启动，正常使用系统
+2. 系统每日凌晨自动进行系统备份。
+3. 升级系统：用户上网下载升级包，按照用户指导手册，升级系统。在升级系统前，可以手动执行系统备份命令。
+4. Rescue流程：因各种原因，当用户系统失败时，可以从CF卡启动Golden Image启动，恢复系统。
+5. 系统恢复有两个选项，第一个恢复至出厂设置，第二个恢复最近一次备份。
 
-基于以上需求，对OS改造及boot部分要求如下：
-=========================================
-1. Centos7系统盘要分离，变为只读和可读写部分，只读放在CompactFlash上，可读写部分放在硬盘上。
-2. CompactFlash要支持两个分区，一个分区给Golden Image，永远不能updgrade，另外一个给latest系统，可以upgrade
-3. 支持可以从GoldenImage boot，但default从latest系统boot。
+
+snapshot 设计
+================
+1. 系统仅对lvm-root, 即根文件系统做snapshot，其他lvm不做snapshot和恢复。
+2. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot， 即删除旧snap0，重新创建snap0。
+3. 用户在升级系统前，可以手动执行zshield_backup备份命令，对系统进行备份（过程与2相同）。
+4. 系统恢复选项，"Recover to last backup"对应从snap0恢复系统，恢复至最近一次备份。
+
+
+Prototype系统的创建
+===================
+1. 通过标准CentOS 7 installer安装到CF卡Golden Image区。以32G CF卡为例，分区为Golden Image区和预留区（供将来使用），各16G。
+2. 拷贝解压安装zshield至安盾至Golden Image区。
+3. 在step 1里应该已经完成grub-install过程。如果没有，须手动执行grub-install --target=i386-pc --boot-directory=/boot /dev/sda完成CF卡上的grub安装。
+4. 手动修改/etc/grub.cfg，添加root=/dev/sda1 ro内核参数，将系统启动时改为只读。
+5. 继续修改grub.cfg, 复制一份启动menuentry ，分别添加“Recover to factory default"和“Recover to latest backup”描述，并分别加入zshield_recovery=default和zshield_recovery=latest内核参数.
+5. 修改/etc/rc.d/rc.local, 添加zshield_recover.sh脚本执行。
+6. Prototype系统创建完成
+
+zshield_recover.sh脚本基本内容
+===================
+1. 如果zshield_recovery内核参数为空，返回。
+2. 如果zshield_recovery为default, 完成以下初始化工作：
+			初始化硬盘，创建pv, vgs, lv-root等
+			挂载lv-root
+			通过rsync备份golden image到lv-root
+			更改lv-root下的/etc/fstab
+			对硬盘安装grub
+			更新grub
+3. 如果zshield_recovery为恢复上次备份, 完成以下工作：
+			扫描/dev/sdb硬盘内的vgs和lv
+			将snap0进行merge到lv-root
+			
+具体内容如下：
+if [-z $zshield_recovery]; then 
+	exit
+fi
+
+if [ $zshield_recovery == default]; then
+    fdisk /dev/sdb
+    pvcreate /dev/sdb1		
+    vgcreate vgroup /dev/sdb1
+    lvcreate -L 100G -n vgroup lv-root
+    mkfs.ext4 /dev/vgroup/lv-root
+    mkdir /mnt/lv-root
+    mount /dev/vgroup/lv-root/ /mnt/lv-root
+    rsync -avHX / /mnt/lv-root/ --exclude '/mnt'  --exclude '/proc' --exclude '/dev' --exclude '/tmp'
+
+		[Change fstab on target system with new UUID or LABEL, /mnt/lv-root/etc/fstab]
+
+		mount --bind /proc /mnt/lv-root/proc
+		mount --bind /sys /mnt/lv-root/sys
+		mount --bind /dev /mnt/lv-root/dev
+		mount --bind /run /mnt/lv-root/run
+		mount --bind /boot /mnt/lv-root/boot
+		chroot /mnt/lv-root
+
+    grub-install --target=i386-pc --boot-directory=/boot /dev/sdb
+		[update-grub]
+
+elif [$zshield_recovery == latest]; then
+		vgscan
+		lvscan
+    lvconvert --merge /dev/vgroup/snap0
+fi
+
+zshield backup和自动备份dameon工作基本内容
+===================
+lvremove /dev/lvgroup/snap0
+lvcreate -s -n snap0 -l 100G /dev/lvgroup/snap0
+
+
+示意图
+============
+
+初始
+
+| CF         | 硬盘|
+|grub        |--:|
+|/boot Golden| |
+|Golden      | |
+
+
+OEM厂商初始化安装（或者用户选择回复出场设置）
+
+| CF         | 硬盘         |
+|grub        | grub:        |
+|/boot Golden| /boot        |
+|Golden      | lv-root      |
+|            | snap0        |
+|            |              |
+
+
+每日自动更新snap0对lv-root进行备份。系统出错后，可以选择从snap0恢复最近一次备份。
+
+
+| CF         | 硬盘                        |
+|grub        |grub:                        |
+|/boot Golden| /boot system                |
+|Golden      | lv-root + merge snap0       |
+
 
 LVM snapshot 介绍
 ================
@@ -40,97 +137,3 @@ snap1 就是硬盘上的可以使用的 root 分区。
   cow 这个写过的块而不用管 lv0-real。
 4. 比较复杂的是写 lv0.这个时候要看 cow 文件有没有覆盖这个写的块。
   如果没有就要复制到 cow 文件。
-
-
-[LVM snapshot 可以跨不同的 PV](https://stackoverflow.com/questions/28942795/lvm-create-snapshot-between-volume-groups)
-
-这个比较重要是因为， CF 卡和硬盘是不同的硬盘设备，属于不同的 PV。
-snapshot 需要跨 CF 和 硬盘。
-
-[LVM snapshot merge](https://www.thegoldfish.org/2011/09/reverting-to-a-previous-snapshot-using-linux-lvm/)
-这个练习建议跟一下。 snapshot merge 就是把 snapshot 写回原来的 lv。
-相当于 lv 里面自从take snapshot 以后更改的内容就完全丢弃了。
-
-注意， 不可以创建 snapshot 的 snapshot。
-
-
-/boot 分区的考虑
-================
-
-LVM 的sanpshot 并不覆盖 /boot 分区。因为 /boot 分区是 Grub 用来加载 linux
-kernel 的，Grub 不是 Linux 并不能理解和访问 LVM。所以snapshot 恢复的时候
-/boot 分区需要单独处理, 包括复制 /boot 分区。
-
-建议方案是 Golden 和系统正常跑的都有自己的单独的 /boot 分区。
-Golden 的 /boot 分区先启动，如果没有用户输入的话，缺省跳入系统的 /boot
-分区。
-
-下载 upgrade 的时候会创建一个系统 /boot 分区并在 （LVM ? TBD) 里面保存一个
-/boot 分区的备份镜像。这样恢复的时候可以直接拷贝。
-
-
-初始系统的创立
-===================
-Golden 在网络下载新的系统镜像。在硬盘创建 LV 写入。
-在完成下载以后，创建一个初始的 snapshot “factory”。
-
-这个 factory snapshot 可以用来把硬盘的系统分区恢复到出场设置。
-
-然后系统盘启动以后正常写入。
-
-
-系统盘的恢复
-============
-
-进入 golen 盘，把 factory snapshot 进行 merge 操作：
-lvconvert --merge /dev/vg-name/lv-factory
-从新覆盖 /boot 分区。
-重启就可以了。
-
-
-用户 YUM 升级
-=============
-升级前，用户可以先 take sanpshot， "before-upgrade".
-然后用户正常 yum 升级。
-升级完和以后，用户检测是否满意成功。
-如果成功 可以删除 “before-upgrade”
-如果不成功，把 "before-upgrade" merge 回系统盘。
-系统盘丢失升级造成的改动。
-
-
-示意图
-============
-
-初始
-
-| CF         | 硬盘|
-|---         |--:|
-|/boot Golden| |
-|Golden      | |
-
-
-下载系统升级以后
-
-| CF         | 硬盘         |
-|---         |-----:        |
-|/boot Golden|              |
-|Golden      | System       |
-|            |              |
-|            |              |
-
-
-本地系统初始化以后
-创建 factory snapshot
-创建 /boot 的备份
-
-
-| CF         | 硬盘         |
-|---         |-----:        |
-|/boot Golden| /boot system |
-|Golden      | System       |
-|            | Factory snapshot|
-|            | /backup of boot|
-
-
-
-
