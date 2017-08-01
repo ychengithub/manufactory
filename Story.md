@@ -28,6 +28,9 @@ LVM snapshot 介绍
 [LVM snapshot 工作机制](https://www.clevernetsystems.com/lvm-snapshots-explained/)
 
 这里主要搞清楚 lv0, lv0-real, snap1, snap1-cow 之间的关系。
+结合我们这个例子简单的映射关系：
+lv0 就是 Gloden Image，在 CF 卡上。 
+snap1 就是硬盘上的可以使用的 root 分区。
 
 
 1. 如果不涉及写到 lv0 的话，lv0 和 lv0-real 是一回事。读 lv0 会从 lv0-real 来读
@@ -36,20 +39,98 @@ LVM snapshot 介绍
 3. 写 snap1 就是写 snap1-cow, 被写过的块就在 cow 文件创立。下次读 snap1 这个块就读到
   cow 这个写过的块而不用管 lv0-real。
 4. 比较复杂的是写 lv0.这个时候要看 cow 文件有没有覆盖这个写的块。
-  如果没有就要复制到 cow 文件。如果有多个 snapshot 就会有多个 cow 要复制。
-
-对应到我这个例子，CF 卡的 Golden 就是 lv0, 从 Golden 启动就需要用到 snapshot，
-就是 snap1， 这个 snap1 是在硬盘上。 也就是说，启动过程需要写的文件，都在 snap1
-写入，自动就把读写分区放到了硬盘上。我们不需要改动 Cento 7 的系统盘划分只读部分
-和可以写部分。
-
-每次进入 Golden 启动就是很简单，删除 snap1，去掉上次进入 Golden 的残留
-状态。从新创立 snap1，就是用 CF 卡的 Golden 来做 lv0. 这个删除和创立 snapshot
-很快，因为等价删除文件和创立空文件，不需要拷贝任何数据。
+  如果没有就要复制到 cow 文件。
 
 
 [LVM snapshot 可以跨不同的 PV](https://stackoverflow.com/questions/28942795/lvm-create-snapshot-between-volume-groups)
 
 这个比较重要是因为， CF 卡和硬盘是不同的硬盘设备，属于不同的 PV。
 snapshot 需要跨 CF 和 硬盘。
+
+[LVM snapshot merge](https://www.thegoldfish.org/2011/09/reverting-to-a-previous-snapshot-using-linux-lvm/)
+这个练习建议跟一下。 snapshot merge 就是把 snapshot 写回原来的 lv。
+相当于 lv 里面自从take snapshot 以后更改的内容就完全丢弃了。
+
+注意， 不可以创建 snapshot 的 snapshot。
+
+
+/boot 分区的考虑
+================
+
+LVM 的sanpshot 并不覆盖 /boot 分区。因为 /boot 分区是 Grub 用来加载 linux
+kernel 的，Grub 不是 Linux 并不能理解和访问 LVM。所以snapshot 恢复的时候
+/boot 分区需要单独处理, 包括复制 /boot 分区。
+
+建议方案是 Golden 和系统正常跑的都有自己的单独的 /boot 分区。
+Golden 的 /boot 分区先启动，如果没有用户输入的话，缺省跳入系统的 /boot
+分区。
+
+下载 upgrade 的时候会创建一个系统 /boot 分区并在 （LVM ? TBD) 里面保存一个
+/boot 分区的备份镜像。这样恢复的时候可以直接拷贝。
+
+
+初始系统的创立
+===================
+Golden 在网络下载新的系统镜像。在硬盘创建 LV 写入。
+在完成下载以后，创建一个初始的 snapshot “factory”。
+
+这个 factory snapshot 可以用来把硬盘的系统分区恢复到出场设置。
+
+然后系统盘启动以后正常写入。
+
+
+系统盘的恢复
+============
+
+进入 golen 盘，把 factory snapshot 进行 merge 操作：
+lvconvert --merge /dev/vg-name/lv-factory
+从新覆盖 /boot 分区。
+重启就可以了。
+
+
+用户 YUM 升级
+=============
+升级前，用户可以先 take sanpshot， "before-upgrade".
+然后用户正常 yum 升级。
+升级完和以后，用户检测是否满意成功。
+如果成功 可以删除 “before-upgrade”
+如果不成功，把 "before-upgrade" merge 回系统盘。
+系统盘丢失升级造成的改动。
+
+
+示意图
+============
+
+初始
+
+| CF         | 硬盘|
+|---         |--:|
+|/boot Golden| |
+|Golden      | |
+
+
+下载系统升级以后
+
+| CF         | 硬盘         |
+|---         |-----:        |
+|/boot Golden|              |
+|Golden      | System       |
+|            |              |
+|            |              |
+
+
+本地系统初始化以后
+创建 factory snapshot
+创建 /boot 的备份
+
+
+| CF         | 硬盘         |
+|---         |-----:        |
+|/boot Golden| /boot system |
+|Golden      | System       |
+|            | Factory snapshot|
+|            | /backup of boot|
+
+
+
 
