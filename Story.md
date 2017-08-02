@@ -25,14 +25,14 @@
 2. 系统备份：系统每日凌晨自动进行系统备份，用户也可手动执行系统备份命令。
 3. 系统升级：用户上网下载升级包，按照用户指导手册，升级系统。系统升级命令会自动触发系统备份。
 4. 系统恢复：
-							a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复，完成恢复后系统自动重启。
-							b)当系统运行时出现一致性检查告警，弹出提示框，可选择恢复至出厂设置/最近一次备份，恢复完成后，无须重启系统。
+            a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复，完成恢复后系统自动重启。
+            b)当系统运行时出现一致性检查告警，弹出提示框，可选择恢复至出厂设置/最近一次备份，恢复完成后，无须重启系统。
 5. 系统紧急回复：向用户提供USB紧急回复盘（与USB安装盘相同），用于恶劣情况下的系统重新安装。 
 					
 snapshot 设计
 ================
-1. 系统仅对lvm-root, 即根文件系统做snapshot，其他lvm不做snapshot和恢复。lvm-root可能使用SSD硬盘或者HDD硬盘，取决于SSD硬盘大小。
-2. 系统对lvm-root，维护两个snapshot，snap0为出厂备份，完成安装后自动产生。snap1为最新备份，由系统每日凌晨备份。两个snapshot，均位于HDD硬盘上。 
+1. 系统仅对lvm-root, 即根文件系统做snapshot和恢复，其他lvm不做snapshot和恢复。lvm-root大小100G，放在SSD硬盘上。
+2. 系统对lvm-root，维护两个snapshot，snap0为出厂备份，完成安装后自动产生。snap1为最新备份，由系统每日凌晨自动备份。snap0和snap1均位于HDD硬盘上。 
 3. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot， 即删除旧snap1，重新创建snap1。
 4. 提供zshield_backup备份命令， 供用户在断电或其他事件前备份系统（过程与3相同）。
 5. 系统升级命令会自动触发系统备份。
@@ -42,19 +42,20 @@ USB安装盘创建
 1. 通过标准CentOS 7 installer精简安装到USB，并创建根文件系统。
 2. 拷贝ISP系统运行kernel image，initrd image和系统压缩根文件系统（包含至安盾）至USB根文件系统。
 3. 在step 1里应该已经完成grub-install过程。如果没有，须手动执行grub-install --target=i386-pc --boot-directory=/boot /dev/sda完成USB盘上的grub安装。
-4. 修改/etc/rc.d/rc.local, 添加zshield_manufactory.sh脚本执行。
+4. 修改/etc/rc.d/rc.local, 添加zshield_manufactory.py脚本执行。
 5. USB安装盘完成
 
-zshield_manufactory.sh脚本基本内容
+zshield_manufactory.py功能介绍
 ===================
-1. 初始化SSD硬盘，创建/dev/sda1和sda2区， 拷贝kernel image到sda1区，作为系统正常启动/boot区，sda2为Golden Image启动临时文件系统。
-2. 在SSD上创建pv, vgs, lv-root
-3. 挂载lv-root，解压系统根文件系统至lv-root。 
-4. 更改lv-root下的/etc/fstab
-5. 对SSD硬盘安装grub，从/boot启动，挂在lv-root文件系统
-6. 更新grub, 添加Golden Image启动选项，正常情况下，依然从/boot区启动，但挂载临时文件系统。
-7. 初始化/dev/sdb的HDD硬盘，创建其他lvm,并对lv-root产生snap0, snap1
-8. 安装完成。
+1. 图形化界面， 无需人工介入
+2. 初始化SSD硬盘，创建/dev/sda1和sda2区， 拷贝kernel image到sda1区，作为系统正常启动/boot区，sda2为Golden Image启动临时文件系统。
+3. 在SSD上创建pv, vgs, lv-root
+4. 挂载lv-root，解压系统根文件系统至lv-root。 
+5. 更改lv-root下的/etc/fstab
+6. 对SSD硬盘安装grub，从/boot启动，挂在lv-root文件系统
+7. 更新grub, 添加Golden Image启动选项，正常情况下，依然从/boot区启动，但挂载临时文件系统。
+8. 初始化/dev/sdb的HDD硬盘，创建其他lvm,并对lv-root产生snap0, snap1
+9. 安装完成。
 
 Golden Image启动和回复过程
 ===================
@@ -75,8 +76,8 @@ Golden Image启动和回复过程
 
 zshield backup和自动备份dameon工作基本内容
 ===================
-lvremove /dev/lvgroup/snap0
-lvcreate -s -n snap0 -l 100G /dev/lvgroup/snap0
+lvremove /dev/VolGroup/snap1
+lvcreate -s -n snap1 -L 100G /dev/VolGroup/lv-root
 
 
 /boot 分区的考虑
@@ -89,31 +90,32 @@ lvcreate -s -n snap0 -l 100G /dev/lvgroup/snap0
 
 初始
 
-| USB         | SSD 硬盘|  HDD 硬盘 |
-|grub         |--:      |						|
-|/boot        |  				|						|
-|File System  | 				|						|
+| USB Stick   | SSD Disk|  HDD Disk |
+| grub        |--:      |           |
+| /boot       |         |           |
+| File System |         |           |
 
 
 OEM厂商初始化安装（或者用户选择USB重新恢复）
 
-| USB         | SSD 硬盘|  HDD 硬盘 |
-|grub         | grub    |	 --:			|
-|/boot        | /boot		|	lv-home		|
-|File System  | /tmp_FS	|	lv-xxx		|
-							| lv-root | snap0			|
-												| snap1			|
+| USB Stick   | SSD Disk            |  HDD Disk       |
+| grub        | grub                | --:             |
+| /boot       | /boot               | lv-home         |
+| File System | /tmp_FS             | lv-bglog        |
+              | lv-root             | snap0-->lv-root |
+                                    | snap1-->lv-root |
+                        
 
 出厂时产生snap0, 每日自动更新snap1对lv-root进行备份。系统出错后，可以选择从恢复出厂设置或者最近一次备份
 
 恢复出厂设置或者最近一次备份
 
-| USB         | SSD 硬盘						|  HDD 硬盘 |
-|grub         | grub    						|	 --:			|
-|/boot        | /boot								|	lv-home		|
-|File System  | /tmp_FS							|	lv-xxx		|
-							| lv-root+snap0/snap1 | snap0			|
-																		| snap1			|
+| USB Stick   | SSD Disk            |  HDD Disk       |
+| grub        | grub                | --:             |
+| /boot       | /boot               | lv-home         |
+| File System | /tmp_FS             | lv-bglog        |
+              | lv-root+snap0/snap1 | snap0-->lv-root |
+                                    | snap1-->lv-root |
 
 
 LVM snapshot 介绍
