@@ -91,7 +91,8 @@ lvcreate -s -n snap1 -L 100G /dev/VolGroup/lv-root
 初始
 
 | USB Stick   | SSD Disk|  HDD Disk |
-| grub        |--:      |           |
+| ----        | :--:    |   -------:|
+| grub        |         |           |
 | /boot       |         |           |
 | File System |         |           |
 
@@ -99,11 +100,11 @@ lvcreate -s -n snap1 -L 100G /dev/VolGroup/lv-root
 OEM厂商初始化安装（或者用户选择USB重新恢复）
 
 | USB Stick   | SSD Disk            |  HDD Disk       |
-| grub        | grub                | --:             |
-| /boot       | /boot               | lv-home         |
-| File System | /tmp_FS             | lv-bglog        |
-              | lv-root             | snap0-->lv-root |
-                                    | snap1-->lv-root |
+| ----        | :--:                |         -------:|
+| grub        | grub                | lv-home         |
+| /boot       | /boot               | lv-bglog        |
+| File System | /tmp_FS             | snap0-->lv-root |
+|             | lv-root             | snap1-->lv-root |
                         
 
 出厂时产生snap0, 每日自动更新snap1对lv-root进行备份。系统出错后，可以选择从恢复出厂设置或者最近一次备份
@@ -111,11 +112,11 @@ OEM厂商初始化安装（或者用户选择USB重新恢复）
 恢复出厂设置或者最近一次备份
 
 | USB Stick   | SSD Disk            |  HDD Disk       |
-| grub        | grub                | --:             |
-| /boot       | /boot               | lv-home         |
-| File System | /tmp_FS             | lv-bglog        |
-              | lv-root+snap0/snap1 | snap0-->lv-root |
-                                    | snap1-->lv-root |
+| ----        | :--:                |         -------:|
+| grub        | grub                | lv-home         |
+| /boot       | /boot               | lv-bglog        |
+| File System | /tmp_FS             | snap0-->lv-root |
+|             | lv-root+snap0/snap1 | snap1-->lv-root |
 
 
 LVM snapshot 介绍
