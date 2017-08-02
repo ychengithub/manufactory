@@ -1,11 +1,12 @@
 
+HAVE_PANDOC := $(shell pandosc -v 2> /dev/null)
+ifeq ($(HAVE_PANDOC),)
+$(error package "pandoc" not installed. Try "yum install pandoc")
+endif
 
 TARGETS = html/Story.html
 
 all: $(TARGETS)
-
-html:
-	mkdir html
 
 html/%.html : %.md | html
 	pandoc -c custom.css -o $@ $<
