@@ -119,8 +119,10 @@ OEM厂商初始化安装（或者用户选择USB重新恢复）
 |             | lv-root+snap0/snap1 | snap1-->lv-root |
 
 
-LVM snapshot 介绍
-================
+
+Links and reference
+===================
+
 [LVM snapshot 工作机制](https://www.clevernetsystems.com/lvm-snapshots-explained/)
 
 这里主要搞清楚 lv0, lv0-real, snap1, snap1-cow 之间的关系。
@@ -136,3 +138,16 @@ snap1 就是硬盘上的可以使用的 root 分区。
   cow 这个写过的块而不用管 lv0-real。
 4. 比较复杂的是写 lv0.这个时候要看 cow 文件有没有覆盖这个写的块。
   如果没有就要复制到 cow 文件。
+
+
+[LVM snapshot 可以跨不同的 PV](https://stackoverflow.com/questions/28942795/lvm-create-snapshot-between-volume-groups)
+
+这个比较重要是因为， SSD 和硬盘是不同的硬盘设备，属于不同的 PV。
+snapshot 需要跨 SSD 和 硬盘。
+
+[LVM snapshot merge](https://www.thegoldfish.org/2011/09/reverting-to-a-previous-snapshot-using-linux-lvm/)
+这个练习建议跟一下。 snapshot merge 就是把 snapshot 写回原来的 lv。
+相当于 lv 里面自从take snapshot 以后更改的内容就完全丢弃了。
+注意， 不可以创建 snapshot 的 snapshot。
+
+
