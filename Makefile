@@ -1,5 +1,5 @@
 
-HAVE_PANDOC := $(shell pandosc -v 2> /dev/null)
+HAVE_PANDOC := $(shell pandoc -v 2> /dev/null)
 ifeq ($(HAVE_PANDOC),)
 $(error package "pandoc" not installed. Try "yum install pandoc")
 endif
