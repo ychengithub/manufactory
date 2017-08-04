@@ -32,7 +32,8 @@
 					
 snapshot 设计
 ================
-1. 系统仅对lvm-root, 即根文件系统做snapshot和恢复，其他lvm不做snapshot和恢复。lvm-root大小100G，放在SSD硬盘上。 （XXX: We don't need 100G for root. 50G should be more than enough.)
+1. 系统仅对lvm-root, 即根文件系统做snapshot和恢复，其他lvm不做snapshot和恢复。lvm-root大小100G，放在SSD硬盘上。
+（XXX: We don't need 100G for root. 50G should be more than enough.)
 2. 系统对lvm-root，维护两个snapshot，snap0为出厂备份，完成安装后自动产生。snap1为最新备份，由系统每日凌晨自动备份。snap0和snap1均位于HDD硬盘上。 
 3. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot， 即删除旧snap1，重新创建snap1。
 4. 提供zshield_backup备份命令， 供用户在断电或其他事件前备份系统（过程与3相同）。
@@ -131,6 +132,18 @@ OEM厂商初始化安装（或者用户选择USB重新恢复）
 | /boot       | /boot               | lv-bglog        |
 | File System | /tmp_FS             | snap0-->lv-root |
 |             | lv-root+snap0/snap1 | snap1-->lv-root |
+
+
+SSD作为日常启动盘和根文件系统的潜在风险：
+=======================
+1. 按照资料，MLC SSD仅能支持9000~10000次读写。需要考虑用SSD做lv-root时的每日读写量。
+   不过，启诚也介绍了SSD leveling， 也就是耗损平均技术，可以认为损耗是整个SSD盘平均的。
+   只要每日写入不超过500G（平均5次），可以能支撑五年以上。考虑到常写的log 文件目录在
+   硬盘上，这个每日写入量应该不多。可以通过观测 snapshot 大小来验证 
+2. 写入时的突然断电问题。SSD可以认为是工作在write back模式，里面有volatile的RAM。 
+   有些文章介绍，写入时突然断电，会有数据丢失危险。不过 Chris 反馈这属于SSD硬件的firmware
+   没做好， 真正企业用的SSD硬盘应该没这个危险。具体到我们，还需要了解下SSD硬盘的厂商和型号。
+   回头要做大量的写入时断电测试，来确认这个是否会成为问题。
 
 
 SSD，硬盘，Raid 断电可靠性测试
