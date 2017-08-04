@@ -1,19 +1,19 @@
 
 基本硬件配置
 ============
-1. SSD硬盘(SATA接口）：容量64G以上
-2. HDD硬盘：(LSI raid card)，系统盘容量500G(LVM分区）。其他还有两个LVM分区：用户区、审计区（存放日志）
-3. USB 安装盘，给 OEM 厂家启动以后自动完成安装到硬盘和 SSD。
+1. SSD硬盘(SATA接口）：容量128G，存储Golden Image，供用户出错时恢复系统
+2. HDD硬盘：可以为SATA硬盘或者RAID磁盘阵列，单盘容量4T, 用于正常系统运行和用户数据存储，
+   分为lv-root, lv-home, lv-bglog三个LVM。 
+3. Live USB安装盘: 容量16G, 供OEM厂商初始化安装系统和用户恶劣情况下重新安装系统。
 
 系统设计原则
 ============
 1. 方便生产：系统可以由OEM厂商一键安装，经过测试后直接发往客户
 2. 系统容灾：向客户提供错误恢复功能，可以恢复至最近备份或出厂设置。
-3. 启动迅速：日常启动从SSD启动，保证尽量快速
-4. 使用简洁：grub启动选项尽量精简，避免错误进入。同时在不可恢复的擦除，可能 overwrite 数据
-   的时候提供二次确认选项，避免用户一次错误选择意外损失数据，无法恢复。 
-5. 自动友好：提供系统自动备份，自动一致性检查，自动告警功能，减少用户介入
-6. 误操作保护：对于Golden Image设为只读格式，避免误操作。同时提供USB紧急恢复盘，双重恢复机制。 
+3. 使用简洁：grub启动选项尽量精简，避免错误进入。Golden image恢复系统时
+   提供二次确认选项，避免用户一次错误选择意外损失数据，无法恢复。 
+4. 自动友好：提供系统自动备份，自动一致性检查，自动告警功能，减少用户介入
+5. 误操作保护：对于Golden Image设为只读格式，避免误操作。同时提供USB紧急恢复盘，双重恢复机制。 
 
 生产流程：
 ==========
@@ -23,115 +23,82 @@
 
 用户使用流程：
 =============
-1. 正常使用：用户从SSD硬盘启动，选择默认（第一个）grub选项，正常使用系统。
+1. 正常使用：用户从HDD硬盘启动,正常使用系统。
 2. 系统备份：系统每日凌晨自动进行系统备份，用户也可手动执行系统备份命令。
-3. 系统升级：用户上网下载升级包，按照用户指导手册，升级系统。系统升级命令会自动触发系统备份。
-   （XXX： 问题，下载升级包是否 RPM 格式的，是否就是用 yum repository）
-    (雪松：目前系统安装和升级包，为tar.gz包，里面包括需要的系统rpm压缩包，安装脚本，以及与产品有关的文件系统压缩包，安装的时候是安装rpm，解压更新文件系统，更新service，然后重启系统)
+3. 系统升级：用户上网下载升级包，按照用户指导手册，升级系统。系统升级命令会自动触发系统备份。升级系统，长期目标为rpm方式。
 4. 系统恢复：
-            a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复重启，完成恢复后系统自动重启。
+            a)当系统无法正常启动时，从SSD硬盘的Golden Image启动，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复重启，完成恢复后系统自动重启。
             b)当系统运行时出现一致性检查告警，弹出提示框，可选择恢复至出厂设置/最近一次备份，恢复完成后，自动重启系统。
 5. 系统紧急回复：向用户提供USB紧急回复盘（与USB安装盘相同），用于恶劣情况下的系统重新安装。 
 					
 snapshot 设计
 ================
-1. 系统仅对lvm-root, 即根文件系统做snapshot和恢复，其他lvm不做snapshot和恢复。lvm-root大小100G，放在SSD硬盘上。
-（XXX: We don't need 100G for root. 50G should be more than enough.)
-2. 系统对lvm-root，维护两个snapshot，factory 为出厂备份，完成安装后自动产生。snapshot-20170802 为最新备份， 名字反映在
-   snapshot 的时间。由系统每日凌晨自动备份。factory和snapshot-xxxxxxx 均位于HDD硬盘上。 
-3. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot， 重新创建snap1, 即删除旧snap1.
-4. 提供zshield_backup备份命令， 供用户在断电或其他事件前备份系统（过程与3相同）。
+1. 系统仅对lvm-root, 即根文件系统做snapshot和恢复，其他lvm不做snapshot和恢复。lvm-root大小50G，放在HDD硬盘上。
+2. 系统对lvm-root，维护两个snapshot，factory 为出厂备份，完成安装后自动产生。latest为最新备份, 由系统每日凌晨自动备份。
+   factory和latest均位于HDD硬盘上。 
+3. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot, 更新latest.
+4. 提供zshield_backup备份命令，供用户在断电或其他事件前备份系统（过程与3相同）。
 5. 系统升级命令会自动触发系统备份。
 
-
-USB 安装盘
-============
-1. 使用 Cento/RHEL 标准安装盘，kick start 添加几个 zshield 安装包。
-2. 从安装好的 SSD 里面自动生成 /boot / filesystem image
-（雪松：考虑到以下因素：
-     1. USB安装盘主要是面向OEM厂商或者公司内部使用，不是给最终用户使用。
-     2. 现有系统安装的过程，以及使用kick starter会给客户更多配置可选项，而我们的硬盘分区和格式基本是确定的， 
-     不推荐使用kick starter， 使用旧有的USB安装盘）
-
-
-旧USB安装盘创建 （XXX 这个区被废除，换成 Centos kick star 安装）
+Prototype Live USB安装盘创建
 ===================
-1. 通过标准CentOS 7 installer精简安装到 SSD,并创建根文件系统。
-2. 安装 zshield 的 RPM， 提供 zshield 启动的系统服务。
-3. 寻造一个小的 USB Live CD iamge 为基准来创造 USB 安装盘。不需要图形界面。
-2. copy SSD 的 /boot 还有 / 文件系统的 image。 使用工具类似 e2fsimage.
-2. 拷贝ISP系统运行kernel image，initrd image和系统压缩根文件系统（包含至安盾）至USB根文件系统。
+1. 通过标准CentOS 7 installer精简安装到 USB,并创建根文件系统。
+2. 拷贝ISP系统运行时kernel image，initrd image和源文件系统压缩包（已安装至安盾系统）至USB根文件系统。
 3. 在step 1里应该已经完成grub-install过程。如果没有，须手动执行grub-install --target=i386-pc --boot-directory=/boot /dev/sda完成USB盘上的grub安装。
-（XXX 这个 4. 应该在被启动的系统服务替代，不需要改 rc.local 4. 修改/etc/rc.d/rc.local, 添加zshield_manufactory.py脚本执行。)
-5. USB安装盘完成
-
-(XXX: This USB install disk did not need to use EXT3 etc. Using LiveCD like image with overlay
- is likely faster. Also with normal writable partition, after each boot up the root on USB
- is written. There is a chance to damage the system.)
+4. 修改/etc/rc.d/rc.local, 添加zshield_manufactory.py脚本执行
+5. Protoype Live USB安装盘完成. 
+6. 运行dd命令产生镜像文件。镜像文件可以发送给OEM厂商，用dd产生后续Live USB安装盘.
 
 zshield_manufactory.py功能介绍
 ===================
-1. 类似grub 的菜单界面， 无需人工介入
-(XXX: if no people attent, text interface is good enough ?)
-(XXX: research dnf-system-upgrade how does it deal with grub?)
+1. 初始化HDD硬盘:
+	a) 初始化硬盘，创建/boot分区，创建lvm-root, lvm-home, lvm-bglog三个LVM分区。
+	b) 拷贝kernel image和initrd image至/boot分区，解压源文件系统压缩包至lvm-root。
+	c) 对HDD安装grub
+	d) HDD硬盘初始化完成
 
-3. 用户选择初始化硬盘和 SSD
-	1. 初始化硬盘分区表， LVM 分区
-	2. untar 解压文件
-	2. 创建 snapshot
-	3. grub install
-	4. reboot
-
-4. 用户选择roll back 到一个snapshot，包括 factory。
-	1. snapshot merge /
-	2. snapshot merge /boot
-	2. reboot
-
-
-6. 对SSD硬盘安装grub，从/boot启动，挂在lv-root文件系统
-7. 更新grub, 添加Golden Image启动选项，正常情况下，依然从/boot区启动，但挂载临时文件系统。
-8. 初始化/dev/sdb的HDD硬盘，创建其他lvm,并对lv-root产生snap0, snap1
-9. 安装完成。
+2. 初始化SSD硬盘
+	a) 初始化硬盘，创建/boot和/root分区
+	b) 拷贝kernel image和initrd image至/boot分区，从Live USB盘拷贝精简文件系统至/root分区。
+	c) 对SSD安装grub
+        d) 向Golden系统添加自动运行python脚本，供用户选择恢复至出厂设置/恢复至最近备份/退出恢复。
+        e) SSD硬盘初始化完成
+3. 在HDD上创建factory和latest两个snapshot
+4. 安装完成, 重新启动系统
 
 Golden Image启动和回复过程
 ===================
-1. 用户从SSD硬盘启动，选择Golden Image启动（第二个）grub选项
-2. 正常情况下，依然从/boot区启动，但挂载临时文件系统。
-3. 执行python脚本弹出对话框，供客户选择恢复至出厂设置/最近一次备份/退出恢复。对应操作如下：
+1. 用户选择从SSD硬盘启动，进入Golden Image。
+2. 执行python脚本弹出对话框，供客户选择恢复至出厂设置/最近一次备份/退出恢复。对应操作如下：
 	 a)恢复至出场设置：
 				扫描/dev/sdb硬盘内的vgs和lv
-				将snap0进行merge到lv-root
+				将factory进行merge到lv-root
 				重启系统
 	 b)恢复至最近一次备份 
 				扫描/dev/sdb硬盘内的vgs和lv
-				将snap1进行merge到lv-root
+				将latest进行merge到lv-root
 				重启系统
 	 c)退出恢复：
 	      重启系统			
 
-（XXX： 恢复 /boot 如何处理？）
-（雪松： 可以简单在/etc/fstab里添加nouser和noauto选项，系统正常使用，不mount boot分区，在系统升级，需要更新kernel image的情况下，在升级命令里mount）
-
 zshield backup和自动备份dameon工作基本内容
 ===================
-lvremove /dev/VolGroup/snap1
-lvcreate -s -n snap1 -L 100G /dev/VolGroup/lv-root
+lvremove /dev/VolGroup/latest
+lvcreate -s -n latest -L 50G /dev/VolGroup/lv-root
 
 
-/boot 分区的考虑
+Golden Image保护
 ================
-由于snapshot无法覆盖/boot分区的备份，考虑使用复制/boot分区，或者使用grub2的/boot容灾机制。
-（雪松： 可以简单在/etc/fstab里添加nouser和noauto选项，系统正常使用，不mount boot分区，在系统升级，需要更新kernel image的情况下，在升级命令里mount）
+由于snapshot无法覆盖/boot分区的备份，Golden Image采用ISO9660文件系统，然后overlay ramFS。
 
 
 示意图
 ============
 
-(XXX: USB use ISO files?)
 
 初始
 
-| USB Stick   | SSD Disk|  HDD Disk |
+| Live USB    | SSD Disk|  HDD Disk |
 | ----        | :--:    |   -------:|
 | grub        |         |           |
 | /boot       |         |           |
@@ -140,39 +107,29 @@ lvcreate -s -n snap1 -L 100G /dev/VolGroup/lv-root
 
 OEM厂商初始化安装（或者用户选择USB重新恢复）
 
-| USB Stick   | SSD Disk            |  HDD Disk       |
-| ----        | :--:                |         -------:|
-| grub        | grub                | lv-home         |
-| /boot       | /boot               | lv-bglog        |
-| File System | /tmp_FS             | snap0-->lv-root |
-|             | lv-root             | snap1-->lv-root |
+| Live USB    | SSD Disk            |  HDD Disk         |
+| ----        | :--:                |         -------:  |
+| grub        | Golden grub         | ISP grub          |
+| /boot       | /Golden boot        | ISP boot          |
+| File System | /Golden FS          | lv-root           |
+|             |                     | lv-home           |
+|             |                     | lv-bglog          |
+|             |                     | factory-->lv-root |
+|             |                     | latest-->lv-root  |
                         
 
-(XXX: what is this /tmp_FS) 
 
-出厂时产生snap0, 每日自动更新snap1对lv-root进行备份。系统出错后，可以选择从恢复出厂设置或者最近一次备份
-
-恢复出厂设置或者最近一次备份
-
-| USB Stick   | SSD Disk            |  HDD Disk       |
-| ----        | :--:                |         -------:|
-| grub        | grub                | lv-home         |
-| /boot       | /boot               | lv-bglog        |
-| File System | /tmp_FS             | snap0-->lv-root |
-|             | lv-root+snap0/snap1 | snap1-->lv-root |
-
-
-SSD作为日常启动盘和根文件系统的潜在风险：
-=======================
-1. 按照资料，MLC SSD仅能支持9000~10000次读写。需要考虑用SSD做lv-root时的每日读写量。
-   不过，启诚也介绍了SSD leveling， 也就是耗损平均技术，可以认为损耗是整个SSD盘平均的。
-   只要每日写入不超过500G（平均5次），可以能支撑五年以上。考虑到常写的log 文件目录在
-   硬盘上，这个每日写入量应该不多。可以通过观测 snapshot 大小来验证 
-2. 写入时的突然断电问题。SSD可以认为是工作在write back模式，里面有volatile的RAM。 
-   有些文章介绍，写入时突然断电，会有数据丢失危险。不过 Chris 反馈这属于SSD硬件的firmware
-   没做好， 真正企业用的SSD硬盘应该没这个危险。具体到我们，还需要了解下SSD硬盘的厂商和型号。
-   回头要做大量的写入时断电测试，来确认这个是否会成为问题。
-
+出厂时产生factory, 每日自动更新latest对lv-root进行备份。系统出错后，可以选择从恢复出厂设置或者最近一次备份
+恢复出厂设置或者最近一次备份, 此时无需Live USB
+| SSD Disk            |  HDD Disk         |
+| :--:                |         -------:  |
+| Golden grub         | ISP grub          |
+| /Golden boot        | ISP boot          |
+| /Golden FS          | lv-root merged    |
+|                     | lv-home           |
+|                     | lv-bglog          |
+|                     | factory-->lv-root |
+|                     | latest-->lv-root  |
 
 SSD，硬盘，Raid 断电可靠性测试
 ==================
