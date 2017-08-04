@@ -10,7 +10,8 @@
 1. 方便生产：系统可以由OEM厂商一键安装，经过测试后直接发往客户
 2. 系统容灾：向客户提供错误恢复功能，可以恢复至最近备份或出厂设置。
 3. 启动迅速：日常启动从SSD启动，保证尽量快速
-4. 使用简洁：grub启动选项尽量精简，避免错误进入。同时提供二次选项，避免用户错误选择无法恢复。 
+4. 使用简洁：grub启动选项尽量精简，避免错误进入。同时在不可恢复的擦除，可能 overwrite 数据
+   的时候提供二次确认选项，避免用户一次错误选择意外损失数据，无法恢复。 
 5. 自动友好：提供系统自动备份，自动一致性检查，自动告警功能，减少用户介入
 6. 误操作保护：对于Golden Image设为只读格式，避免误操作。同时提供USB紧急恢复盘，双重恢复机制。 
 
@@ -18,15 +19,16 @@
 ==========
 1. 志翔（Zshield）向OEM厂商提供USB安装盘（或者镜像文件，由OEM厂商dd到USB盘）。 
 2. OEM厂商从USB盘启动，一键完成系统初始化安装。
-3. OEM厂商运行出厂测试程序，测试通过后，直接发货给客户
+3. OEM厂商运行出厂测试程序，可能是另外一个测试 USB 启动盘，测试通过后，直接发货给客户
 
 用户使用流程：
 =============
 1. 正常使用：用户从SSD硬盘启动，选择默认（第一个）grub选项，正常使用系统。
 2. 系统备份：系统每日凌晨自动进行系统备份，用户也可手动执行系统备份命令。
 3. 系统升级：用户上网下载升级包，按照用户指导手册，升级系统。系统升级命令会自动触发系统备份。
+   （XXX： 问题，下载升级包是否 RPM 格式的，是否就是用 yum repository）
 4. 系统恢复：
-            a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复，完成恢复后系统自动重启。
+            a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复重启，完成恢复后系统自动重启。
             b)当系统运行时出现一致性检查告警，弹出提示框，可选择恢复至出厂设置/最近一次备份，恢复完成后，自动重启系统。
 5. 系统紧急回复：向用户提供USB紧急回复盘（与USB安装盘相同），用于恶劣情况下的系统重新安装。 
 					
@@ -34,17 +36,29 @@ snapshot 设计
 ================
 1. 系统仅对lvm-root, 即根文件系统做snapshot和恢复，其他lvm不做snapshot和恢复。lvm-root大小100G，放在SSD硬盘上。
 （XXX: We don't need 100G for root. 50G should be more than enough.)
-2. 系统对lvm-root，维护两个snapshot，snap0为出厂备份，完成安装后自动产生。snap1为最新备份，由系统每日凌晨自动备份。snap0和snap1均位于HDD硬盘上。 
-3. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot， 即删除旧snap1，重新创建snap1。
+2. 系统对lvm-root，维护两个snapshot，factory 为出厂备份，完成安装后自动产生。snapshot-20170802 为最新备份， 名字反映在
+   snapshot 的时间。由系统每日凌晨自动备份。factory和snapshot-xxxxxxx 均位于HDD硬盘上。 
+3. 系统维护一个备份dameon， 每日凌晨自动对lvm-root进行snapshot， 重新创建snap1, 即删除旧snap1.
 4. 提供zshield_backup备份命令， 供用户在断电或其他事件前备份系统（过程与3相同）。
 5. 系统升级命令会自动触发系统备份。
 
-USB安装盘创建
+
+USB 安装盘
+============
+1. 使用 Cento/RHEL 标准安装盘，kick start 添加几个 zshield 安装包。
+2. 从安装好的 SSD 里面自动生成 /boot / filesystem image
+
+
+
+旧USB安装盘创建 （XXX 这个区被废除，换成 Centos kick star 安装）
 ===================
-1. 通过标准CentOS 7 installer精简安装到USB，并创建根文件系统。
+1. 通过标准CentOS 7 installer精简安装到 SSD,并创建根文件系统。
+2. 安装 zshield 的 RPM， 提供 zshield 启动的系统服务。
+3. 寻造一个小的 USB Live CD iamge 为基准来创造 USB 安装盘。不需要图形界面。
+2. copy SSD 的 /boot 还有 / 文件系统的 image。 使用工具类似 e2fsimage.
 2. 拷贝ISP系统运行kernel image，initrd image和系统压缩根文件系统（包含至安盾）至USB根文件系统。
 3. 在step 1里应该已经完成grub-install过程。如果没有，须手动执行grub-install --target=i386-pc --boot-directory=/boot /dev/sda完成USB盘上的grub安装。
-4. 修改/etc/rc.d/rc.local, 添加zshield_manufactory.py脚本执行。
+（XXX 这个 4. 应该在被启动的系统服务替代，不需要改 rc.local 4. 修改/etc/rc.d/rc.local, 添加zshield_manufactory.py脚本执行。)
 5. USB安装盘完成
 
 (XXX: This USB install disk did not need to use EXT3 etc. Using LiveCD like image with overlay
@@ -53,14 +67,22 @@ USB安装盘创建
 
 zshield_manufactory.py功能介绍
 ===================
-1. 图形化界面， 无需人工介入
+1. 类似grub 的菜单界面， 无需人工介入
 (XXX: if no people attent, text interface is good enough ?)
+(XXX: research dnf-system-upgrade how does it deal with grub?)
 
-2. 初始化SSD硬盘，创建/dev/sda1和sda2区， 拷贝kernel image到sda1区，作为系统正常启动/boot区，sda2为Golden Image启动临时文件系统。
-3. 在SSD上创建pv, vgs, lv-root
-4. 挂载lv-root，解压系统根文件系统至lv-root。 
-5. 更改lv-root下的/etc/fstab
-(XXX: consider kick starter?)
+3. 用户选择初始化硬盘和 SSD
+	1. 初始化硬盘分区表， LVM 分区
+	2. untar 解压文件
+	2. 创建 snapshot
+	3. grub install
+	4. reboot
+
+4. 用户选择roll back 到一个snapshot，包括 factory。
+	1. snapshot merge /
+	2. snapshot merge /boot
+	2. reboot
+
 
 6. 对SSD硬盘安装grub，从/boot启动，挂在lv-root文件系统
 7. 更新grub, 添加Golden Image启动选项，正常情况下，依然从/boot区启动，但挂载临时文件系统。
