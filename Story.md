@@ -27,6 +27,7 @@
 2. 系统备份：系统每日凌晨自动进行系统备份，用户也可手动执行系统备份命令。
 3. 系统升级：用户上网下载升级包，按照用户指导手册，升级系统。系统升级命令会自动触发系统备份。
    （XXX： 问题，下载升级包是否 RPM 格式的，是否就是用 yum repository）
+    (雪松：目前系统安装和升级包，为tar.gz包，里面包括需要的系统rpm压缩包，安装脚本，以及与产品有关的文件系统压缩包，安装的时候是安装rpm，解压更新文件系统，更新service，然后重启系统)
 4. 系统恢复：
             a)当系统无法正常启动时，选择Grub选项的Golden Image恢复，按照提示框选择恢复至出厂设置/最近一次备份/退出恢复重启，完成恢复后系统自动重启。
             b)当系统运行时出现一致性检查告警，弹出提示框，可选择恢复至出厂设置/最近一次备份，恢复完成后，自动重启系统。
@@ -47,7 +48,10 @@ USB 安装盘
 ============
 1. 使用 Cento/RHEL 标准安装盘，kick start 添加几个 zshield 安装包。
 2. 从安装好的 SSD 里面自动生成 /boot / filesystem image
-
+（雪松：考虑到以下因素：
+     1. USB安装盘主要是面向OEM厂商或者公司内部使用，不是给最终用户使用。
+     2. 现有系统安装的过程，以及使用kick starter会给客户更多配置可选项，而我们的硬盘分区和格式基本是确定的， 
+     不推荐使用kick starter， 使用旧有的USB安装盘）
 
 
 旧USB安装盘创建 （XXX 这个区被废除，换成 Centos kick star 安装）
@@ -106,6 +110,7 @@ Golden Image启动和回复过程
 	      重启系统			
 
 （XXX： 恢复 /boot 如何处理？）
+（雪松： 可以简单在/etc/fstab里添加nouser和noauto选项，系统正常使用，不mount boot分区，在系统升级，需要更新kernel image的情况下，在升级命令里mount）
 
 zshield backup和自动备份dameon工作基本内容
 ===================
@@ -116,6 +121,7 @@ lvcreate -s -n snap1 -L 100G /dev/VolGroup/lv-root
 /boot 分区的考虑
 ================
 由于snapshot无法覆盖/boot分区的备份，考虑使用复制/boot分区，或者使用grub2的/boot容灾机制。
+（雪松： 可以简单在/etc/fstab里添加nouser和noauto选项，系统正常使用，不mount boot分区，在系统升级，需要更新kernel image的情况下，在升级命令里mount）
 
 
 示意图
