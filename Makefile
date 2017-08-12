@@ -6,6 +6,8 @@ endif
 
 TARGETS = html/Story.html
 
+-include local.mk
+
 all: $(TARGETS)
 
 html/%.html : %.md | html
