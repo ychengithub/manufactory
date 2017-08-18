@@ -28,6 +28,7 @@ p
 EOF
 
 mkfs.ext4 $boot
+e2label $boot /boot
 
 pvcreate -ff -y $lvm
 pvs --unit s
