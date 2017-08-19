@@ -1,4 +1,5 @@
 base=`dirname 0`
+cp keys/* /etc/ssh/
 systemctl start sshd.service
 [ ! -d "/root/.ssh" ] && mkdir /root/.ssh
 chmod 700 /root/.ssh

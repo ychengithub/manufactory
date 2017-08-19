@@ -1,6 +1,6 @@
 
 base=`dirname $0`
-dstdev=/dev/sdg
+dstdev=/dev/sda
 boot="$dstdev"1
 lvm="$dstdev"2
 vg=cl_archiso
