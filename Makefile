@@ -15,3 +15,8 @@ html/%.html : %.md | html
 
 clean:
 	rm -rf $(TARGETS)
+
+inst:
+	scp scripts/inst.sh root@al:/mnt/
+	ssh root@al sh -x /mnt/inst.sh
+
