@@ -1,5 +1,6 @@
 base=`dirname 0`
-cp keys/* /etc/ssh/
+cp -a keys/* /etc/ssh/
+chmod 600 /etc/ssh/*.pub
 ifconfig enp2s0f0 192.168.10.135 up
 systemctl start sshd.service
 [ ! -d "/root/.ssh" ] && mkdir /root/.ssh
