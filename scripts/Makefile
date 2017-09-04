@@ -1,7 +1,8 @@
-run:
-	scp inst.sh target:/mnt/
+
+run: sync
 	ssh target /bin/sh -x /mnt/inst.sh
-grub:
-	scp grub.sh target:/mnt/
+grub: sync
 	ssh target /bin/sh -x /mnt/grub.sh
 
+sync:
+	scp inst.sh grub.sh sshd.sh target:/mnt
