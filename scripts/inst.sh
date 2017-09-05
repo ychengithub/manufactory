@@ -7,7 +7,7 @@ vg=VolGroup
 lvsize=860160000S
 swsize=66076672S 
 #bootarch=boot.tar.bz2
-rootarch=lvroot.tar.gz
+rootarch=lvroot-selinux.tar.gz
 bootqcow=sda1.qcow2
 rootqcow=VolGroup-lv_root.qcow2
 mbr=sda.mbr.dd
@@ -34,8 +34,8 @@ p
 EOF
 
 #e2image -ra $bootqcow $boot
-#mkfs.ext4 -O ^64bit $boot
-#e2label $boot /boot
+mkfs.ext4 -F -F -O "^64bit" $boot
+e2label $boot /boot
 
 pvcreate -ff -y $lvm
 pvs --unit s
@@ -49,10 +49,10 @@ lvs --unit s
 
 
 #e2image -ra $rootqcow /dev/mapper/$vg-lv_root
-#mkfs.ext4 -O ^64bit  /dev/mapper/$vg-lv_root
-dd if=$base/sda1.raw.sparse of=$boot
-e2label $boot /boot
-dd if=$base/lv_root.raw.sparse of=/dev/mapper/$vg-lv_root
+mkfs.ext4 -F -F -O "^64bit"  /dev/mapper/$vg-lv_root
+#dd if=$base/sda1.raw.sparse of=$boot
+#e2label $boot /boot
+#dd if=$base/lv_root.raw.sparse of=/dev/mapper/$vg-lv_root
 
 mkswap /dev/mapper/$vg-lv_swap
 mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-lv_home
@@ -61,18 +61,18 @@ mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-lv_bglog
 
 [ ! -d /img ] && mkdir /img
 mount /dev/mapper/$vg-lv_root /img
-#[ ! -d /img/boot ] && mkdir /img/boot
-#mount $boot /img/boot
-#$base/tar --selinux -zxvf $base/$rootarch -C /img
+[ ! -d /img/boot ] && mkdir /img/boot
+mount $boot /img/boot
+$base/tar --selinux -zxvf $base/$rootarch -C /img
 
-#umount /img/boot
+umount /img/boot
 
 mount -t proc proc /img/proc
 mount -o bind /dev /img/dev
 mount -t sysfs sys /img/sys
 mount -o bind /dev/pts /img/dev/pts
 
-#chroot /img /usr/sbin/grub2-install --boot-directory=/boot $dstdev
+##chroot /img /usr/sbin/grub2-install --boot-directory=/boot $dstdev
 chroot /img/ /bin/env PATH=/bin:/usr/bin:/sbin:/usr/sbin /bin/mount $boot /boot
 cp $base/device.map /img/boot/grub
 chroot /img  /bin/env PATH=/bin:/usr/bin:/sbin:/usr/sbin /sbin/grub-install $dstdev
