@@ -8,8 +8,8 @@ lvsize=860160000S
 swsize=66076672S 
 #bootarch=boot.tar.bz2
 rootarch=lvroot-selinux.tar.gz
-bootqcow=sda1.qcow2
-rootqcow=VolGroup-lv_root.qcow2
+#bootqcow=sda1.qcow2
+#rootqcow=VolGroup-lv_root.qcow2
 mbr=sda.mbr.dd
 
 
