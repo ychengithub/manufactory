@@ -1,5 +1,6 @@
 
-base=`dirname $0`
+#base=`dirname $0`
+base=$(cd "$(dirname "$0")"; pwd)
 dstdev=/dev/sdb
 boot="$dstdev"1
 lvm="$dstdev"2
@@ -8,10 +9,8 @@ lvsize=860160000S
 swsize=66076672S 
 #bootarch=boot.tar.bz2
 rootarch=lvroot-selinux.tar.gz
-#bootqcow=sda1.qcow2
-#rootqcow=VolGroup-lv_root.qcow2
+homearch=lvhome-selinux.tar.gz
 mbr=sda.mbr.dd
-
 
 echo base is $base
 
@@ -19,7 +18,7 @@ echo base is $base
 vgchange -an 
 
 # for tar --selinux
-ln -sf $base/ibselinux.so.1 /lib64
+ln -sf $base/libselinux.so.1 /lib64
 
 # empty the GTP label
 dd if=$base/$mbr of=$dstdev
@@ -33,7 +32,6 @@ unit s
 p
 EOF
 
-#e2image -ra $bootqcow $boot
 mkfs.ext4 -F -F -O "^64bit" $boot
 e2label $boot /boot
 
@@ -48,24 +46,27 @@ lvcreate  -y -L 184352768S -n lv_bglog $vg
 lvs --unit s
 
 
-#e2image -ra $rootqcow /dev/mapper/$vg-lv_root
 mkfs.ext4 -F -F -O "^64bit"  /dev/mapper/$vg-lv_root
-#dd if=$base/sda1.raw.sparse of=$boot
-#e2label $boot /boot
-#dd if=$base/lv_root.raw.sparse of=/dev/mapper/$vg-lv_root
 
 mkswap /dev/mapper/$vg-lv_swap
 mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-lv_home
 mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-lv_bglog
 
-
 [ ! -d /img ] && mkdir /img
 mount /dev/mapper/$vg-lv_root /img
 [ ! -d /img/boot ] && mkdir /img/boot
 mount $boot /img/boot
-$base/tar --selinux -zxvf $base/$rootarch -C /img
-
+$base/pv $base/$rootarch | $base/tar --selinux -zxvf >/dev/null - -C /img
 umount /img/boot
+
+[ ! -d /home ] && mkdir /home
+mount /dev/mapper/$vg-lv_home /home
+$base/pv $base/$homearch | $base/tar --selinux -zxvf >/dev/null - -C /home
+
+[ ! -d /bglog ] && mkdir /bglog
+mount /dev/mapper/$vg-lv_bglog /bglog
+mkdir -p /bglog/BGdata
+mkdir -p /bglog/sub_node.ext
 
 mount -t proc proc /img/proc
 mount -o bind /dev /img/dev
@@ -85,8 +86,8 @@ umount /img/dev
 umount /img/sys
 umount /img/proc
 umount /img
+umount /home
+umount /bglog
 
 
 vgchange -an $vg
-
-
