@@ -80,6 +80,10 @@ mount /dev/mapper/$vg-lv_root /img
 mount $boot /img/boot
 pv $base/$rootarch 2>&3 | $base/tar --selinux -zxf - -C /img
 umount /img/boot
+touch /img/root/factory_flag
+cp -fr $base/rc.local /img/etc/ 
+cp -fr $base/update_dev_id.sh /img/usr/local/bin
+cp -fr $base/network_config /img/root
 
 
 echo "instaling home partition" 1>&3
