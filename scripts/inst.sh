@@ -6,31 +6,45 @@ exec 3>&1 1>${logfile} 2>&1
 base=`dirname $0`
 base=`realpath "$base"`
 
-matching="931 GiB"
+matching_3000="23438819328 sectors" # 3000 install disk
+matching_1000="5860533168 sectors" # 1000 install disk
+
 # find a disk that has the matching size
-disks=( `fdisk -l | grep  "$matching" | cut -d " " -f 2 | cut -d : -f 1` )
-echo "Install disk matching $matching found: $disks" 1>&3
-if [ ${#disks[@]} != 1 ]; then
-    echo "can not find exactly one disk mathching $matching : $disks" 1>&3
+disks_3000=( `fdisk -l | grep  "$matching_3000" | cut -d " " -f 2 | cut -d : -f 1` )
+disks_1000=( `fdisk -l | grep  "$matching_1000" | cut -d " " -f 2 | cut -d : -f 1` )
+echo "Install disk matching 3000 $matching_3000 found: $disks_3000" 1>&3
+echo "Install disk matching 1000 $matching_1000 found: $disks_1000" 1>&3
+if [ ${#disks_3000[@]} == 1 ]; then
+	dstdev=${disks_3000[0]}
+	boot_start=2048s
+	boot_end=1026047s
+	lvm_start=1026048s
+	lvm_end=23437791232s
+	root_size=860160000S
+	swap_size=66076672S
+	home_size=11827200000S
+	bglog_size=10684350464S
+
+elif [ ${#disks_1000[@]} == 1 ]; then
+	dstdev=${disks_1000[0]}
+	boot_start=2048s
+	boot_end=1026047s
+	lvm_start=1026048s
+	lvm_end=5860532223s
+	root_size=21504000S
+	swap_size=66076672S
+	home_size=2662400000S
+	bglog_size=2916524032S
+else
+    echo "can not find exactly one disk mathching 3000 or 1000" 1>&3
     exit
 fi
 
-dstdev=${disks[0]}
 echo "installing on $dstdev" 1>&3
 
 bootdev="$dstdev"1
-boot_start=2048s
-boot_end=1026047s
-
 lvmdev="$dstdev"2
-lvm_start=1026048s
-lvm_end=1952448511s
-
 vg=VolGroup
-lvm_size=860160000S
-swap_size=66076672S
-home_size=127205376S
-bglog_size=184352768S
 
 #Name of the logical volume name
 lv_root=lv_root
@@ -74,7 +88,7 @@ pvcreate -ff -y $lvmdev
 pvs --unit s
 vgcreate $vg $lvmdev
 vgs --unit s
-lvcreate  -y -L $lvm_size -n $lv_root $vg
+lvcreate  -y -L $root_size -n $lv_root $vg
 lvcreate  -y -L $swap_size -n $lv_swap $vg
 lvcreate  -y -L $home_size -n $lv_home $vg
 lvcreate  -y -L $bglog_size -n $lv_bglog $vg
