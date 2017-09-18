@@ -19,7 +19,7 @@ if [ ${#disks_3000[@]} == 1 ]; then
 	boot_start=2048s
 	boot_end=1026047s
 	lvm_start=1026048s
-	lvm_end=23437791232s
+	lvm_end=23438817279s
 	root_size=860160000S
 	swap_size=66076672S
 	home_size=11827200000S
@@ -69,7 +69,7 @@ echo "creating partition on $dstdev" 1>&3
 # empty the GTP label
 dd if=$base/$mbr of=$dstdev
 
-parted -s $dstdev mklabel msdos
+parted -s $dstdev mklabel gpt
 parted  $dstdev <<EOF
 unit s
 mkpart  primary ext4 $boot_start $boot_end
