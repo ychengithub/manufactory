@@ -5,6 +5,7 @@ exec 3>&1 1>${logfile} 2>&1
 
 base=`dirname $0`
 base=`realpath "$base"`
+srcdev=`mount | grep " / " | cut -d ' ' -f 1`
 
 matching_3000="23438819328 sectors" # 3000 install disk
 matching_1000="5860533168 sectors" # 1000 install disk
@@ -18,17 +19,20 @@ if [ ${#disks_3000[@]} == 1 ]; then
 	dstdev=${disks_3000[0]}
 	boot_start=2048s
 	boot_end=1026047s
-	lvm_start=1026048s
-	lvm_end=23438817279s
-	root_size=860160000S
+	golden_start=1026048s
+	golden_end=5220351s
+	lvm_start=5220352s
+	lvm_end=23438819294s
+	root_size=419430400S
 	swap_size=66076672S
-	home_size=11827200000S
-	bglog_size=10684350464S
-
+	home_size=11166916608S
+	bglog_size=10942308352S
 elif [ ${#disks_1000[@]} == 1 ]; then
 	dstdev=${disks_1000[0]}
 	boot_start=2048s
 	boot_end=1026047s
+	golden_start=1026048s
+	golden_end=5220351s
 	lvm_start=1026048s
 	lvm_end=5860532223s
 	root_size=21504000S
@@ -40,10 +44,11 @@ else
     exit
 fi
 
-echo "installing on $dstdev" 1>&3
+echo "installing on $dstdev from $srcdev" 1>&3
 
 bootdev="$dstdev"1
-lvmdev="$dstdev"2
+goldev="$dstdev"2
+lvmdev="$dstdev"3
 vg=VolGroup
 
 #Name of the logical volume name
@@ -73,27 +78,45 @@ parted -s $dstdev mklabel gpt
 parted  $dstdev <<EOF
 unit s
 mkpart  primary ext4 $boot_start $boot_end
+mkpart  primary ext4 $golden_start $golden_end
 mkpart	primary $lvm_start $lvm_end
-set 2 lvm on
+set 3 lvm on
+set 2 boot on
 p
 EOF
 
 echo "creating boot filesystem on $bootdev" 1>&3
-# empty the GTP label
 mkfs.ext4 -F -F -O "^64bit" $bootdev
 e2label $bootdev /boot
+
+mkfs.ext4 -F -F -O "^64bit" $goldev
+e2label $goldev golden
+
+echo "installing golden partition" 1>&3
+[ ! -d /img ] && mkdir /img
+mount $goldev /img
+
+[ ! -d /src ] && mkdir /src
+mount $srcdev /src
+cp -ra /src/{bin,boot,dev,etc,home,lib,lib64,mnt,opt,proc,root,run,sbin,srv,sys,tmp,usr,var} /img
+
+echo "installing golden bootloader" 1>&3
+extlinux -i /img/boot/syslinux
+umount /src
+umount /img
 
 echo "creating volume group $vg" 1>&3
 pvcreate -ff -y $lvmdev
 pvs --unit s
 vgcreate $vg $lvmdev
 vgs --unit s
+
 lvcreate  -y -L $root_size -n $lv_root $vg
 lvcreate  -y -L $swap_size -n $lv_swap $vg
 lvcreate  -y -L $home_size -n $lv_home $vg
 lvcreate  -y -L $bglog_size -n $lv_bglog $vg
 lvs --unit s
-
+vgs --unit s
 
 echo "creating file system inside volume group $vg" 1>&3
 mkfs.ext4 -F -F -O "^64bit"  /dev/mapper/$vg-$lv_root
