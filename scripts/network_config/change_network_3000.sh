@@ -1,17 +1,5 @@
 #!/bin/bash
 
-eth0=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth5/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth1=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth4/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth2=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth3/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth3=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth2/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth4=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth9/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth5=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth8/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth6=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth7/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth7=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth6/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth8=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth0/) {print a[j+1];exit}}'  | awk '{print $2}'`
-eth9=`ip addr list  | awk '{a[NR]=$0}END{for (j=1;j<=NR;j++) if (a[j]~/ eth1/) {print a[j+1];exit}}'  | awk '{print $2}'`
-
-
 RULE_FILE="/etc/udev/rules.d/70-persistent-net.rules"
 cat>$RULE_FILE<<EOF
 
@@ -22,34 +10,23 @@ cat>$RULE_FILE<<EOF
 # line, and change only the value of the NAME= key.
 
 # PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth0", ATTR{type}=="1", KERNEL=="eth*", NAME="eth0"
+SUBSYSTEM=="net", ACTION=="add", BUS=="pci", KERNELS=="0000:02:00.0", NAME="eth0"
 
 # PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth1", ATTR{type}=="1", KERNEL=="eth*", NAME="eth1"
+SUBSYSTEM=="net", ACTION=="add", BUS=="pci", KERNELS=="0000:02:00.1", NAME="eth1"
 
 # PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth2", ATTR{type}=="1", KERNEL=="eth*", NAME="eth2"
+SUBSYSTEM=="net", ACTION=="add", BUS=="pci", KERNELS=="0000:83:00.0", NAME="eth2"
 
 # PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth3", ATTR{type}=="1", KERNEL=="eth*", NAME="eth3"
+SUBSYSTEM=="net", ACTION=="add", BUS=="pci", KERNELS=="0000:83:00.1", NAME="eth3"
 
 # PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth4", ATTR{type}=="1", KERNEL=="eth*", NAME="eth4"
+SUBSYSTEM=="net", ACTION=="add", BUS=="pci", KERNELS=="0000:83:00.2", NAME="eth4"
 
 # PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth5", ATTR{type}=="1", KERNEL=="eth*", NAME="eth5"
+SUBSYSTEM=="net", ACTION=="add", BUS=="pci", KERNELS=="0000:83:00.3", NAME="eth5"
 
-# PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth6", ATTR{type}=="1", KERNEL=="eth*", NAME="eth6"
-
-# PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth7", ATTR{type}=="1", KERNEL=="eth*", NAME="eth7"
-
-# PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth8", ATTR{type}=="1", KERNEL=="eth*", NAME="eth8"
-
-# PCI device 0x8086:0x1521 (igb)
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="$eth9", ATTR{type}=="1", KERNEL=="eth*", NAME="eth9"
 EOF
 
 

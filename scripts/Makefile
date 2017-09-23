@@ -6,3 +6,7 @@ grub: sync
 
 push:
 	scp inst.sh grub.sh sshd.sh target:/mnt/inst
+pull:
+	scp -r target:/mnt/inst/network_config .
+	scp -r target:/mnt/inst/inst.sh .
+
