@@ -4,5 +4,5 @@ run: sync
 grub: sync
 	ssh target /bin/sh -x /mnt/inst/grub.sh
 
-sync:
+push:
 	scp inst.sh grub.sh sshd.sh target:/mnt/inst

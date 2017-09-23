@@ -1,10 +1,11 @@
 
 
-logfile=/tmp/inst.log
-exec 3>&1 1>${logfile} 2>&1
-
 base=`dirname $0`
 base=`realpath "$base"`
+logfile=$base/inst.log
+[ -f $logfile ] && mv $logfile $base/prev-inst.$$.log
+exec 3>&1 1>${logfile} 2>&1
+
 srcdev=`mount | grep " / " | cut -d ' ' -f 1`
 
 matching_3000="23438819328 sectors" # 3000 install disk
@@ -16,6 +17,7 @@ disks_1000=( `fdisk -l | grep  "$matching_1000" | cut -d " " -f 2 | cut -d : -f 
 echo "Install disk matching 3000 $matching_3000 found: $disks_3000" 1>&3
 echo "Install disk matching 1000 $matching_1000 found: $disks_1000" 1>&3
 if [ ${#disks_3000[@]} == 1 ]; then
+        ISP="3000"
 	dstdev=${disks_3000[0]}
 	boot_start=2048s
 	boot_end=1026047s
@@ -28,12 +30,13 @@ if [ ${#disks_3000[@]} == 1 ]; then
 	home_size=11166916608S
 	bglog_size=10942308352S
 elif [ ${#disks_1000[@]} == 1 ]; then
+        ISP="1000"
 	dstdev=${disks_1000[0]}
 	boot_start=2048s
 	boot_end=1026047s
 	golden_start=1026048s
 	golden_end=5220351s
-	lvm_start=5220352s
+	lvm_start=1026048s
 	lvm_end=5860532223s
 	root_size=21504000S
 	swap_size=66076672S
@@ -136,13 +139,21 @@ echo "installing system files" 1>&3
 mount /dev/mapper/$vg-$lv_root /img
 [ ! -d /img/boot ] && mkdir /img/boot
 mount $bootdev /img/boot
-pv $base/$rootarch 2>&3 | $base/tar --selinux -zxf - -C /img
+time pv $base/$rootarch 2>&3 | $base/tar --selinux -zxf - -C /img
 umount /img/boot
 touch /img/root/factory_flag
 cp -fr $base/rc.local /img/etc/ 
 cp -fr $base/update_dev_id.sh /img/usr/local/bin
-cp -fr $base/network_config /img/root
-
+mkdir /img/root/network_config
+cp -fr $base/network_config/ifcfg-* /img/root/network_config
+cp -fr $base/network_config/cover.sh /img/root/network_config
+if [ "$ISP" == "1000" ]; then
+    cp -fr $base/network_config/change_network_1000.sh /img/root/network_config/change_network.sh
+    cp -fr $base/network_config/restart_udev_1000.sh /img/root/network_config/restart_udev.sh
+else
+    cp -fr $base/network_config/change_network_3000.sh /img/root/network_config/change_network.sh
+    cp -fr $base/network_config/restart_udev_3000.sh /img/root/network_config/restart_udev.sh
+fi
 
 echo "instaling home partition" 1>&3
 [ ! -d /home ] && mkdir /home
