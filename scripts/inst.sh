@@ -29,6 +29,8 @@ if [ ${#disks_3000[@]} == 1 ]; then
 	swap_size=66076672S
 	home_size=11166916608S
 	bglog_size=10942308352S
+	change_network=$base/network_config/change_network_3000.sh
+	restart_udev=$base/network_config/restart_udev_3000.sh
 elif [ ${#disks_1000[@]} == 1 ]; then
         ISP="1000"
 	dstdev=${disks_1000[0]}
@@ -42,6 +44,8 @@ elif [ ${#disks_1000[@]} == 1 ]; then
 	swap_size=66076672S
 	home_size=2662400000S
 	bglog_size=2916524032S
+	change_network=$base/network_config/change_network_1000.sh
+	restart_udev=$base/network_config/restart_udev_1000.sh
 else
     echo "can not find exactly one disk mathching 3000 or 1000" 1>&3
     exit
@@ -147,13 +151,8 @@ cp -fr $base/update_dev_id.sh /img/usr/local/bin
 mkdir /img/root/network_config
 cp -fr $base/network_config/ifcfg-* /img/root/network_config
 cp -fr $base/network_config/cover.sh /img/root/network_config
-if [ "$ISP" == "1000" ]; then
-    cp -fr $base/network_config/change_network_1000.sh /img/root/network_config/change_network.sh
-    cp -fr $base/network_config/restart_udev_1000.sh /img/root/network_config/restart_udev.sh
-else
-    cp -fr $base/network_config/change_network_3000.sh /img/root/network_config/change_network.sh
-    cp -fr $base/network_config/restart_udev_3000.sh /img/root/network_config/restart_udev.sh
-fi
+cp -fr $change_network /img/root/network_config/change_network.sh
+cp -fr $restart_udev /img/root/network_config/restart_udev.sh
 
 echo "instaling home partition" 1>&3
 [ ! -d /home ] && mkdir /home
