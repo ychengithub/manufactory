@@ -47,7 +47,7 @@ elif [ ${#disks_1000[@]} == 1 ]; then
 	bglog_size=2916524032S
 	change_network=$base/network_config/change_network_1000.sh
 	restart_udev=$base/network_config/restart_udev_1000.sh
-	grubconf=$base/grub.conf
+	grubconf=$base/1000/grub.conf
 else
     echo "can not find exactly one disk mathching 3000 or 1000" 1>&3
     exit
