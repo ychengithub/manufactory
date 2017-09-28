@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# This script will be executed *after* all the other init scripts.
+# You can put your own initialization stuff in here if you don't
+# want to do the full Sys V style init stuff.
+
+touch /var/lock/subsys/local
+
+#open web port when system restart
+if [ -f /usr/local/bin/open_web_ports.sh ]; then
+    /usr/local/bin/open_web_ports.sh
+fi
+
+# cleanly restart openam, elk and sftp
+/usr/local/bin/restart_openam_cont.sh
+/usr/local/bin/recover_openam_db.sh
+
+# it is possible that database is not available sepecially in slave mode.
+# database now is used when rstarting sftp container. 
+if [ -f /root/factory_flag ]; then
+    /root/network_config/change_network.sh
+    /root/network_config/cover.sh
+    /root/network_config/restart_udev.sh
+    /usr/local/bin/update_dev_id.sh
+    /usr/local/bin/restart_sftp_cont.sh
+    rm -fr /root/factory_flag
+    rm -fr /root/network_config
+fi
+/usr/local/bin/restart_elk_cont.sh
+
+
