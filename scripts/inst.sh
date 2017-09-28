@@ -148,15 +148,20 @@ mount /dev/mapper/$vg-$lv_root /img
 [ ! -d /img/boot ] && mkdir /img/boot
 mount $bootdev /img/boot
 time pv $base/$rootarch 2>&3 | $base/tar --selinux -zxf - -C /img
-umount /img/boot
+
+#update fstab using label instead of UUID
+sed -i '/\/boot/c\LABEL=\/boot \/boot ext4 defaults 1 2' /img/etc/fstab
+
 touch /img/root/factory_flag
-cp -fr $base/rc.local /img/etc/ 
+cp -fr $base/rc.local /img/etc/
 cp -fr $base/update_dev_id.sh /img/usr/local/bin
 mkdir /img/root/network_config
 cp -fr $base/network_config/ifcfg-* /img/root/network_config
 cp -fr $base/network_config/cover.sh /img/root/network_config
 cp -fr $change_network /img/root/network_config/change_network.sh
 cp -fr $restart_udev /img/root/network_config/restart_udev.sh
+
+umount /img/boot
 
 echo "instaling home partition" 1>&3
 [ ! -d /home ] && mkdir /home
