@@ -1,4 +1,8 @@
 
+export TERM=linux
+disk=`fdisk -l /dev/sda | grep 'Disk /'`
+dialog --title "Message" --yesno "Continue install to $disk" 10 70 || exit
+clear
 
 base=`dirname $0`
 base=`realpath "$base"`
