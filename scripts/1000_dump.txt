@@ -1,0 +1,211 @@
+[root@BG-IAP ~]#  lvdisplay --unit s
+  --- Logical volume ---
+  LV Path                /dev/VolGroup/lv_root
+  LV Name                lv_root
+  VG Name                VolGroup
+  LV UUID                pxhLLo-IFJ8-yzA8-9TWD-IyyJ-Oeda-NboMP8
+  LV Write Access        read/write
+  LV Creation host, time localhost.localdomain, 2017-08-18 17:28:02 +0800
+  LV Status              available
+  # open                 1
+  LV Size                215040000 Se
+  Current LE             26250
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+
+  --- Logical volume ---
+  LV Path                /dev/VolGroup/lv_swap
+  LV Name                lv_swap
+  VG Name                VolGroup
+  LV UUID                kNjhSB-oG06-Fry0-LMU3-g2my-oOpd-IgKg1Y
+  LV Write Access        read/write
+  LV Creation host, time localhost.localdomain, 2017-08-18 17:28:16 +0800
+  LV Status              available
+  # open                 1
+  LV Size                65536000 Se
+  Current LE             8000
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:1
+
+  --- Logical volume ---
+  LV Path                /dev/VolGroup/lv_home
+  LV Name                lv_home
+  VG Name                VolGroup
+  LV UUID                2B3PWf-WkK1-de4Y-GKMk-URN2-yeWq-cbfABF
+  LV Write Access        read/write
+  LV Creation host, time localhost.localdomain, 2017-08-18 17:28:16 +0800
+  LV Status              available
+  # open                 1
+  LV Size                2662400000 Se
+  Current LE             325000
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:2
+
+  --- Logical volume ---
+  LV Path                /dev/VolGroup/lv_bglog
+  LV Name                lv_bglog
+  VG Name                VolGroup
+  LV UUID                Av2yBz-eC9L-eGZ6-kNwM-0u77-ZE8j-Ow5m2V
+  LV Write Access        read/write
+  LV Creation host, time localhost.localdomain, 2017-08-18 17:30:32 +0800
+  LV Status              available
+  # open                 1
+  LV Size                2916524032 Se
+  Current LE             356021
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:3
+
+
+[root@BG-IAP ~]# fdisk -l
+
+WARNING: GPT (GUID Partition Table) detected on '/dev/sda'! The util fdisk doesn't support GPT. Use GNU Parted.
+
+
+Disk /dev/sda: 3000.6 GB, 3000592982016 bytes
+255 heads, 63 sectors/track, 364801 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sda1               1      267350  2147483647+  ee  GPT
+
+Disk /dev/mapper/VolGroup-lv_root: 110.1 GB, 110100480000 bytes
+255 heads, 63 sectors/track, 13385 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/VolGroup-lv_swap: 33.6 GB, 33554432000 bytes
+255 heads, 63 sectors/track, 4079 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/VolGroup-lv_home: 1363.1 GB, 1363148800000 bytes
+255 heads, 63 sectors/track, 165726 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/VolGroup-lv_bglog: 1493.3 GB, 1493260304384 bytes
+255 heads, 63 sectors/track, 181545 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-pool: 107.4 GB, 107374182400 bytes
+255 heads, 63 sectors/track, 13054 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-be2948d3c5386f674e3a3f6018e5f1ffb6a1cea395852ba04c948847efd7af41: 10.7 GB, 10737418240 bytes
+255 heads, 63 sectors/track, 1305 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-0349eedb1da756bb1b7938b4de8cb36d67dac51f4491422a2aad8782895184a0: 10.7 GB, 10737418240 bytes
+255 heads, 63 sectors/track, 1305 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-6156d0c8b293eecb96fa50e07484e48e51d6fcb311139b20c497a6a60cefc147: 10.7 GB, 10737418240 bytes
+255 heads, 63 sectors/track, 1305 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-d4cb6f555c8bcbd879404674ef7b4fa17e6e92f1f43cdfbb48f2856829953a82: 10.7 GB, 10737418240 bytes
+255 heads, 63 sectors/track, 1305 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-b23e08fbe272333091eaa971763ea6dc99baef1dd345b4bf27193ddc05ac7b87: 10.7 GB, 10737418240 bytes
+255 heads, 63 sectors/track, 1305 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+Disk /dev/mapper/docker-253:0-2234016-947832567a9547daf8058037cf0d04e9612a83d0d41ef44bfd664ae6d92b13aa: 10.7 GB, 10737418240 bytes
+255 heads, 63 sectors/track, 1305 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 65536 bytes
+Disk identifier: 0x00000000
+
+
+
+[root@BG-IAP ~]# vgdisplay --unit s
+  --- Volume group ---
+  VG Name               VolGroup
+  System ID
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  5
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                4
+  Open LV               4
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               5859500032 Se
+  PE Size               8192 Se
+  Total PE              715271
+  Alloc PE / Size       715271 / 5859500032 Se
+  Free  PE / Size       0 / 0 Se
+  VG UUID               nADUEo-bvM6-BXDY-lGI0-xriA-h749-TsDp8S
+
+
+
+
+[root@BG-IAP ~]# parted /dev/sda unit s print
+Model: ATA ST3000NM0033-9ZM (scsi)
+Disk /dev/sda: 5860533168s
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+
+Number  Start     End          Size         File system  Name  Flags
+ 1      2048s     1026047s     1024000s     ext4               boot
+ 2      1026048s  5860532223s  5859506176s                     lvm
+
+
+
