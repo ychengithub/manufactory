@@ -5,6 +5,11 @@ export TERM=linux
 disk=`fdisk -l /dev/sda | grep 'Disk /'`
 clear
 
+export TERM=linux
+disk=`fdisk -l /dev/sda | grep 'Disk /'`
+dialog --title "Message" --yesno "Continue install to $disk" 10 70 || exit
+clear
+
 base=`dirname $0`
 base=`realpath "$base"`
 logfile=$base/inst.log
@@ -189,7 +194,11 @@ exec 1>/dev/tty
 log_info "installing system files"
 dialog --title "$ISP Installation" --infobox "installing system files" 5 60 ; sleep 1 
 
+mkswap /dev/mapper/$vg-$lv_swap
+mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_home
+mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_bglog
 
+echo "installing system files" 1>&3
 [ ! -d /img ] && mkdir /img
 mount /dev/mapper/$vg-$lv_root /img
 [ ! -d /img/boot ] && mkdir /img/boot
