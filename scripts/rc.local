@@ -23,8 +23,10 @@ if [ -f /root/factory_flag ]; then
     /root/network_config/restart_udev.sh
     /usr/local/bin/update_dev_id.sh
     /usr/local/bin/restart_sftp_cont.sh
+    /root/device_config
     rm -fr /root/factory_flag
     rm -fr /root/network_config
+    rm -fr /root/device_config
 fi
 /usr/local/bin/restart_elk_cont.sh
 

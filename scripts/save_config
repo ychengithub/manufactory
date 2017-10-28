@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if [ ! -n "$1" ] ;then
+    echo "Usage:"
+    echo "    saveconfig factory: save configuration as factory backup"
+    echo "    saveconfig recent: save configuration as factory backup"
+    exit
+fi
+
+
+case $1 in
+"factory")
+        	vgchange -ay VolGroup
+                lvconvert -f VolGroup/lv_root.factory
+                lvcreate -s -L 10G -n lv_root.factory VolGroup/lv_root
+		exit
+                ;;
+"recent")
+                vgchange -ay VolGroup
+                lvconvert -f VolGroup/lv_root.recent
+                lvcreate -s -L 10G -n lv_root.recent VolGroup/lv_root
+		exit
+                ;;
+*) 
+    echo "Usage:"
+    echo "    saveconfig factory: save configuration as factory backup"
+    echo "    saveconfig recent: save configuration as factory backup"
+    exit;;
+esac
