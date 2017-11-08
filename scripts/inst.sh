@@ -5,11 +5,6 @@ export TERM=linux
 disk=`fdisk -l /dev/sda | grep 'Disk /'`
 clear
 
-export TERM=linux
-disk=`fdisk -l /dev/sda | grep 'Disk /'`
-dialog --title "Message" --yesno "Continue install to $disk" 10 70 || exit
-clear
-
 base=`dirname $0`
 base=`realpath "$base"`
 logfile=$base/inst.log
@@ -32,20 +27,12 @@ matching_1000="5860533168 sectors" # 1000 install disk
 # find a disk that has the matching size
 disks_3000=( `fdisk -l | grep  "$matching_3000" | cut -d " " -f 2 | cut -d : -f 1` )
 disks_1000=( `fdisk -l | grep  "$matching_1000" | cut -d " " -f 2 | cut -d : -f 1` )
-if [ ${#disks_3000[@]} == 1 ]; then
-        isp="ISP3000"
-	dialog --title "ISP3000 Installation" --infobox "Install to disk $disks_3000 : $matching_3000" 5 60; sleep 2
-	clear 
-	log_info "Install disk matching 3000 $matching_3000 found: $disks_3000" 
-elif [ ${#disks_1000[@]} == 1 ]; then
-        isp="ISP1000"
-	dialog --title "ISP1000 Installation" --infobox "Install to disk $disks_1000 : $matching_1000" 5 60; sleep 2 
-	clear
-	log_info "Install disk matching 1000 $matching_1000 found: $disks_1000"
-fi
 
 if [ ${#disks_3000[@]} == 1 ]; then
-        ISP="3000"
+        ISP="ISP3000"
+	dialog --backtitle "ISP Installation System" --title "Disk Checking Success" \
+		--infobox "$ISP disk $disks_3000 found: $matching_3000" 5 60; sleep 2
+	log_info "Install disk matching 3000 $matching_3000 found: $disks_3000" 
 	dstdev=${disks_3000[0]}
 	boot_start=2048s
 	boot_end=1026047s
@@ -61,7 +48,10 @@ if [ ${#disks_3000[@]} == 1 ]; then
 	restart_udev=$base/network_config/restart_udev_3000.sh
 	grubconf=
 elif [ ${#disks_1000[@]} == 1 ]; then
-        ISP="1000"
+        ISP="ISP1000"
+	dialog --backtitle "ISP Installation System" --title "Disk Checking Success" \
+		--infobox "$ISP disk $disks_1000 found: $matching_1000" 5 60; sleep 2
+	log_info "Install disk matching 1000 $matching_1000 found: $disks_1000"
 	dstdev=${disks_1000[0]}
 	boot_start=2048s
 	boot_end=1026047s
@@ -79,13 +69,15 @@ elif [ ${#disks_1000[@]} == 1 ]; then
 	# home_size = 50%FREE
 	# vglog_size = 50%FREE
 else
+    dialog  --backtitle "ISP Installation System" --title "Disk Checking Failed" --msgbox "Can not find exactly one disk mathching ISP3000 or ISP1000" 5 60
     log_info "can not find exactly one disk mathching 3000 or 1000"
     exit
 fi
 
 log_info "installing on $dstdev from $srcdev" 
-dialog --title "$ISP Installation" --infobox "installing on $dstdev from $srcdev" 5 60 ; sleep 1
+dialog  --backtitle "ISP Installation System"  --title "$ISP Installation" --infobox "Start to install system to $dstdev from $srcdev" 5 60 ; sleep 1
 
+exec 3>&1 1>>${logfile} 2>&1
 bootdev="$dstdev"1
 goldev="$dstdev"2
 lvmdev="$dstdev"3
@@ -110,8 +102,9 @@ vgchange -an
 # for tar --selinux
 ln -sf $base/libselinux.so.1 /lib64
 
+exec 1>/dev/tty
 log_info "creating partition on $dstdev"
-dialog --title "$ISP Installation" --infobox "creating partition on $dstdev..." 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System"  --title "$ISP Installation" --infobox "Creating partition on $dstdev..." 5 60 ; sleep 1 
 
 exec 3>&1 1>>${logfile} 2>&1
 # empty the GTP label
@@ -130,18 +123,18 @@ EOF
 
 exec 1>/dev/tty
 log_info "creating boot filesystem on $bootdev" 
-dialog --title "$ISP Installation" --infobox "creating boot filesystem on $bootdev" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Creating boot filesystem on $bootdev" 5 60 ; sleep 1 
 
 exec 3>&1 1>>${logfile} 2>&1
 mkfs.ext4 -F -F -O "^64bit" $bootdev 
 e2label $bootdev /boot  
 
-mkfs.ext4 -F -F -O "^64bit" $goldev
+mkfs.ext4 -F -F -O "^64bit" $goldev  
 e2label $goldev golden
 
 exec 1>/dev/tty
 log_info "installing golden partition" 
-dialog --title "$ISP Installation" --infobox "installing golden partition" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing golden partition" 5 60 ; sleep 1 
 [ ! -d /img ] && mkdir /img
 mount $goldev /img
 
@@ -156,14 +149,14 @@ LABEL=golden	/         	ext4      	rw,relatime,data=ordered	0 1
 EOF
 
 log_info "installing golden bootloader"
-dialog --title "$ISP Installation" --infobox "installing golden bootloader" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing golden bootloader" 5 60 ; sleep 1 
 
 extlinux -i /img/boot/syslinux 
 umount /src
 umount /img
 
 log_info "creating volume group $vg"
-dialog --title "$ISP Installation" --infobox "creating volume group $vg" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Creating volume group $vg" 5 60 ; sleep 1 
 
 exec 3>&1 1>>${logfile} 2>&1
 
@@ -181,24 +174,20 @@ vgs --unit s
 
 exec 1>/dev/tty
 log_info "creating file system inside volume group $vg" 
-dialog --title "$ISP Installation" --infobox "creating file system inside volume group $vg" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Creating file system in volume group $vg" 5 60 ; sleep 1 
 
 exec 3>&1 1>>${logfile} 2>&1
 mkfs.ext4 -F -F -O "^64bit"  /dev/mapper/$vg-$lv_root 
 mkswap /dev/mapper/$vg-$lv_swap
-mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_home
-mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_bglog
+mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_home 
+mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_bglog 
 
 
 exec 1>/dev/tty
 log_info "installing system files"
-dialog --title "$ISP Installation" --infobox "installing system files" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing system files" 5 60 ; sleep 1 
 
-mkswap /dev/mapper/$vg-$lv_swap
-mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_home
-mkfs.ext4  -F -F -O "^64bit" /dev/mapper/$vg-$lv_bglog
 
-echo "installing system files" 1>&3
 [ ! -d /img ] && mkdir /img
 mount /dev/mapper/$vg-$lv_root /img
 [ ! -d /img/boot ] && mkdir /img/boot
@@ -213,6 +202,7 @@ cp -fr $base/rc.local /img/etc/
 cp -fr $base/save_config /img/usr/bin/
 cp -fr $base/update_dev_id.sh /img/usr/local/bin
 cp -fr $base/device_config /img/root/
+cp -fr $base/crontab.txt /img/root/
 mkdir /img/root/network_config
 cp -fr $base/network_config/ifcfg-* /img/root/network_config
 cp -fr $base/network_config/cover.sh /img/root/network_config
@@ -222,20 +212,20 @@ cp -fr $restart_udev /img/root/network_config/restart_udev.sh
 umount /img/boot
 
 log_info "instaling home partition"
-dialog --title "$ISP Installation" --infobox "installing home partition" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing home partition" 5 60 ; sleep 1 
 [ ! -d /home ] && mkdir /home
 mount /dev/mapper/$vg-$lv_home /home
 $base/tar --selinux -zxf $base/$homearch -C /home
 
 log_info "installing bglog partition"
-dialog --title "$ISP Installation" --infobox "installing bglog partition" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing bglog partition" 5 60 ; sleep 1 
 [ ! -d /bglog ] && mkdir /bglog
 mount /dev/mapper/$vg-$lv_bglog /bglog
 mkdir -p /bglog/BGdata
 mkdir -p /bglog/sub_node.ext
 
 log_info "installing bootloader" 
-dialog --title "$ISP Installation" --infobox "installing bootloader" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing bootloader" 5 60 ; sleep 1 
 mount -t proc proc /img/proc
 mount -o bind /dev /img/dev
 mount -t sysfs sys /img/sys
@@ -262,7 +252,7 @@ EOF
 
 exec 1>/dev/tty
 log_info "umounting file systems and flushing cache to disk"
-dialog --title "$ISP Installation" --infobox "umounting file systems and flushing cache to disk" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Umounting file systems and flushing cache to disk" 5 60 ; sleep 1 
 umount $bootdev
 umount /img/dev/pts
 umount /img/dev
@@ -273,7 +263,7 @@ umount /home
 umount /bglog
 
 log_info "taking factory snapshot" 
-dialog --title "$ISP Installation" --infobox "taking snapshots" 5 60 ; sleep 1 
+dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Making Factory Backup" 5 60 ; sleep 1 
 lvcreate -y -L 200G -s -n $lv_root.factory $vg/$lv_root 1>>$logfile
 lvcreate -y -L 200G -s -n $lv_root.recent $vg/$lv_root 1>>$logfile
 #lvcreate -y -L 1024000S -n lv_boot $vg
@@ -282,6 +272,7 @@ lvcreate -y -L 200G -s -n $lv_root.recent $vg/$lv_root 1>>$logfile
 #lvcreate -y -L 200M -s -n lv_boot.factory $vg/lv_boot
 
 log_info "install on $dstdev done" 
-dialog --title "ISP3000 Installation " --infobox "Install on $dstdev finished" 5 60; sleep 2
+dialog --backtitle "ISP Installation System" --title "$ISP Installation " --msgbox "Install on $dstdev finished \n\nPress OK to reboot system" 5 60
 exec 3>&1 1>>${logfile} 2>&1
 vgchange -an $vg
+reboot -fn

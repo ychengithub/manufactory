@@ -1,5 +1,6 @@
+echo "3 4 1 3" > /proc/sys/kernel/printk
 
-choices=`dialog --stdout --backtitle "Checklist" --checklist "Test" 20 80 14 Eth "Ethernet Diagnostic" 1 Disk "Disk Diagnostic" 2 BIOS "BIOS Diagnostic" 3`
+choices=`dialog --stdout --clear --backtitle "Hardware Diagnostic" --no-shadow --checklist "Diagnostic Options" 20 80 14 Eth "Ethernet Diagnostic" 1 Disk "Disk Diagnostic" 2 BIOS "BIOS Diagnostic" 3`
 
 if [[ $choices =~ "Eth" ]]; then
 	ports=$(ip link |grep enp | awk -F, '{print $1}' | sed 's/: <BROADCAST//g'|sed 's/[1-9]: *//g')
@@ -25,13 +26,16 @@ declare -i PERCENT=0
                         break
                 fi
         done
-) | dialog --title "Ethernet Diagnostic" --gauge "Starting Diagnostic..." 20 50 14
+) | dialog --backtitle "Hardware Diagnostic" --title "Ethernet Diagnostic" --gauge "Starting Diagnostic..." 20 50 14
 	
 	if [ $result -eq 1 ]
 	then
-		dialog   --title   "Ethernet Diag" --msgbox "Ethernet interface diag FAILED: please check $port" 10  50 
+		dialog  --backtitle "Hardware Diagnostic"  --title   "Ethernet Interface Diagnostic" \
+			--msgbox "Ethernet interface diag FAILED: please check $port" 10  50 
+		exit
 	else
-		dialog   --title   "Ethernet Diag" --msgbox "Ethernet interface diag Success" 10  50
+		dialog   --backtitle "Hardware Diagnostic" --title   "Ethernet Interface Diagnostic" \
+			 --msgbox "Ethernet interface diag Success" 10  50
 	fi
 fi
 
@@ -49,14 +53,25 @@ if [ ${#disks_3000[@]} == 1 ]; then
 
 declare -i PERCENT=0
 (
-    	for disk in {20,21,22}
-        do
-                echo "XXX"
-                echo "Diagnostic the disk $disk..."
-                echo "XXX"
-                echo $PERCENT
+	disks=`storcli64  /c0 show |grep -A 8 "EID:Slt" | grep "HDD" |awk '{ print $2; }'`
+
+    	for disk in $disks
+	do 
 	        smartctl -d sat+megaraid,$disk /dev/sda -t short -t force >/dev/null
-	        sleep 70
+	done
+	disks_format=`echo "$disks"|tr "\n" " "`
+
+	for i in {1..100}
+	do
+        	echo "XXX"
+        	echo "Diagnostic disk with ID:$disks_format"
+        	echo "XXX"
+		echo $i
+		sleep 1
+	done
+
+    	for disk in $disks
+        do
         	result=$(smartctl -d sat+megaraid,$disk /dev/sda -l selftest | grep "# 1")
         	tmp=${result##*offline}
         	tmp1=${tmp%%[0-9]*}
@@ -69,7 +84,7 @@ declare -i PERCENT=0
                 	break
         	fi
         done
-) | dialog --title "Disk Diagnostic" --gauge "Starting Diagnostic..." 20 50 14
+) | dialog --backtitle "Hardware Diagnostic" --title "Disk Diagnostic" --gauge "Starting Diagnostic..." 20 50 14
 
 elif [ ${#disks_1000[@]} == 1 ]; then
     echo "1000 diag"
@@ -79,9 +94,10 @@ else
 fi
 
 if [ $ret -eq 1 ]; then
-	dialog   --title   "Disk Diag" --msgbox "Disk diag Failed, Please check $disk disk" 10  50
+	dialog   --backtitle "Hardware Diagnostic" --title   "Disk Diag" --msgbox "Disk diag Failed, Please check $disk disk" 10  50
+	exit
 else
-	dialog   --title   "Disk Diag" --msgbox "Disk diag Success" 10  50
+	dialog   --backtitle "Hardware Diagnostic" --title   "Disk Diag" --msgbox "Disk diag Success" 10  50
 fi
 
 fi
@@ -111,21 +127,30 @@ done
 
 declare -i PERCENT=0
 (
-	echo "XXX"
-        echo "Diagnostic the disk $disk..."
-        echo "XXX"
-        echo $PERCENT
-        sleep 1
+	for i in {1..10}
+	do
+		echo "XXX"
+        	echo "Diagnostic the BIOS..."
+        	echo "XXX"
+        	echo $PERCENT
+        	let PERCENT+=10
+        	sleep 1
+	done
 ) | dialog --title "BIOS Diagnostic" --gauge "Starting Diagnostic..." 20 50 14
 
 
 if [ $ret -eq 1 ]; then
-                dialog   --title   "BIOS Diag" --msgbox "BIOS diag Failed, Please check BIOS for such error hint: $result" 10  50
+                dialog  --backtitle "Hardware Diagnostic" --title   "BIOS Diag" \
+			--msgbox "BIOS diag Failed, Please check BIOS for such error hint: $result" 10  50
+		exit
 else
-                dialog   --title   "BIOS Diag" --msgbox "BIOS diag Success" 10  50
+                dialog  --backtitle "Hardware Diagnostic" --title   "BIOS Diag" \
+			--clear --msgbox "BIOS diag Success\n\nPress OK to reboot system" 10  50
 fi
 IFS=$oldIFS
 
 fi
+dialog  --backtitle "Hardware Diagnostic" --title   "Hardware Diagnostic Finished" \
+			--clear --msgbox "Press OK to reboot system" 10  50
 
-
+reboot -fn

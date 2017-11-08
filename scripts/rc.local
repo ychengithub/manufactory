@@ -24,9 +24,11 @@ if [ -f /root/factory_flag ]; then
     /usr/local/bin/update_dev_id.sh
     /usr/local/bin/restart_sftp_cont.sh
     /root/device_config
+    cat /root/crontab.txt >>/var/spool/cron/root
     rm -fr /root/factory_flag
     rm -fr /root/network_config
     rm -fr /root/device_config
+    rm -fr /root/crontab.txt
 fi
 /usr/local/bin/restart_elk_cont.sh
 

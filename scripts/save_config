@@ -2,28 +2,26 @@
 
 if [ ! -n "$1" ] ;then
     echo "Usage:"
-    echo "    saveconfig factory: save configuration as factory backup"
-    echo "    saveconfig recent: save configuration as factory backup"
+    echo "    save_config factory: save configuration as factory backup"
+    echo "    save_config recent: save configuration as factory backup"
     exit
 fi
 
 
 case $1 in
 "factory")
-        	vgchange -ay VolGroup
-                lvconvert -f VolGroup/lv_root.factory
-                lvcreate -s -L 10G -n lv_root.factory VolGroup/lv_root
+                lvremove -f VolGroup/lv_root.factory 1>/dev/null
+                lvcreate -s -L 10G -n lv_root.factory VolGroup/lv_root 1>/dev/null
 		exit
                 ;;
 "recent")
-                vgchange -ay VolGroup
-                lvconvert -f VolGroup/lv_root.recent
-                lvcreate -s -L 10G -n lv_root.recent VolGroup/lv_root
+                lvremove -f VolGroup/lv_root.recent 1>/dev/null
+                lvcreate -s -L 10G -n lv_root.recent VolGroup/lv_root 1>/dev/null
 		exit
                 ;;
 *) 
     echo "Usage:"
-    echo "    saveconfig factory: save configuration as factory backup"
-    echo "    saveconfig recent: save configuration as factory backup"
+    echo "    save_config factory: save configuration as factory backup"
+    echo "    save_config recent: save configuration as factory backup"
     exit;;
 esac

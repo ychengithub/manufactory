@@ -14,7 +14,7 @@ IgnoreOnIsolate=yes
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/bash -c  '/usr/bin/hard_diag'
+ExecStart=/usr/bin/bash -c  '/mnt/inst/hard_diag.sh'
 StandardInput=tty-force
 StandardOutput=tty
 TTYPath=/dev/tty1
