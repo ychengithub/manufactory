@@ -66,7 +66,7 @@ zshield_manufactory.py功能介绍
 3. 在HDD上创建factory和latest两个snapshot
 4. 安装完成, 重新启动系统
 
-Golden Image启动和回复过程
+Golden Image启动和恢复过程
 ===================
 1. 用户选择从SSD硬盘启动，进入Golden Image。
 2. 执行python脚本弹出对话框，供客户选择恢复至出厂设置/最近一次备份/退出恢复。对应操作如下：
