@@ -36,9 +36,7 @@ if [ ${#disks_3000[@]} == 1 ]; then
 	dstdev=${disks_3000[0]}
 	boot_start=2048s
 	boot_end=1026047s
-	golden_start=1026048s
-	golden_end=5220351s
-	lvm_start=5220352s
+	lvm_start=1026048s
 	lvm_end=23438819294s
 	root_size=419430400S
 	swap_size=66076672S
@@ -55,9 +53,7 @@ elif [ ${#disks_1000[@]} == 1 ]; then
 	dstdev=${disks_1000[0]}
 	boot_start=2048s
 	boot_end=1026047s
-	golden_start=1026048s
-	golden_end=5220351s
-	lvm_start=5220352s
+	lvm_start=1026048s
 	lvm_end=5860533134s
 	root_size=314572800S
 	swap_size=66076672S
@@ -79,8 +75,7 @@ dialog  --backtitle "ISP Installation System"  --title "$ISP Installation" --inf
 
 exec 3>&1 1>>${logfile} 2>&1
 bootdev="$dstdev"1
-goldev="$dstdev"2
-lvmdev="$dstdev"3
+lvmdev="$dstdev"2
 vg=VolGroup
 
 #Name of the logical volume name
@@ -89,7 +84,7 @@ lv_swap=lv_swap
 lv_home=lv_home
 lv_bglog=lv_bglog
 
-#bootarch=boot.tar.bz2
+bootarch=lvboot-selinux.tar.gz
 rootarch=lvroot-selinux.tar.gz
 homearch=lvhome-selinux.tar.gz
 mbr=sda.mbr.dd
@@ -114,10 +109,9 @@ parted -s $dstdev mklabel gpt
 parted  $dstdev <<EOF
 unit s
 mkpart  primary ext4 $boot_start $boot_end
-mkpart  primary ext4 $golden_start $golden_end
 mkpart	primary $lvm_start $lvm_end
-set 3 lvm on
-set 2 boot on
+set 2 lvm on
+set 1 boot on
 p
 EOF
 
@@ -129,32 +123,7 @@ exec 3>&1 1>>${logfile} 2>&1
 mkfs.ext4 -F -F -O "^64bit" $bootdev 
 e2label $bootdev /boot  
 
-mkfs.ext4 -F -F -O "^64bit" $goldev  
-e2label $goldev golden
-
 exec 1>/dev/tty
-log_info "installing golden partition" 
-dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing golden partition" 5 60 ; sleep 1 
-[ ! -d /img ] && mkdir /img
-mount $goldev /img
-
-[ ! -d /src ] && mkdir /src
-mount $srcdev /src
-cp -ra /src/{bin,boot,dev,etc,home,lib,lib64,mnt,opt,proc,root,run,sbin,srv,sys,tmp,usr,var} /img
-
-# need to update fstab due to uuid change
-cat > /img/etc/fstab <<EOF
-LABEL=golden	/         	ext4      	rw,relatime,data=ordered	0 1
-
-EOF
-
-log_info "installing golden bootloader"
-dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Installing golden bootloader" 5 60 ; sleep 1 
-
-extlinux -i /img/boot/syslinux 
-umount /src
-umount /img
-
 log_info "creating volume group $vg"
 dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infobox "Creating volume group $vg" 5 60 ; sleep 1 
 
@@ -191,8 +160,9 @@ dialog --backtitle "ISP Installation System" --title "$ISP Installation" --infob
 [ ! -d /img ] && mkdir /img
 mount /dev/mapper/$vg-$lv_root /img
 [ ! -d /img/boot ] && mkdir /img/boot
-mount $bootdev /img/boot
 time pv $base/$rootarch 2>&3 | $base/tar --selinux -zxf - -C /img
+mount $bootdev /img/boot
+time pv $base/$bootarch 2>&3 | $base/tar --selinux -zxf - -C /img/boot
 
 #update fstab using label instead of UUID
 sed -i '/\/boot/c\LABEL=\/boot \/boot ext4 defaults 1 2' /img/etc/fstab
@@ -242,13 +212,6 @@ cat /img/boot/grub/device.map
 
 chroot /img  /bin/env PATH=/bin:/usr/bin:/sbin:/usr/sbin /sbin/grub-install $dstdev
 cp -f /tmp/device.map /img/boot/grub/device.map
-cp /boot/vmlinuz-linux /boot/initramfs-linux-fallback.img  /boot/initramfs-linux.img /img/boot
-cat >>/img/boot/grub/grub.conf <<EOF
-title Golden
-	root (hd0,0)
-	kernel /vmlinuz-linux root=LABEL=golden
-	initrd /initramfs-linux.img
-EOF
 
 exec 1>/dev/tty
 log_info "umounting file systems and flushing cache to disk"
