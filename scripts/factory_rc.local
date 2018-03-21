@@ -1,0 +1,16 @@
+if [ -f /root/factory_flag ]; then
+    ticketsdir="/home/BGsftp/tickets"
+    mkdir -p $ticketsdir
+    chmod g+w $ticketsdir
+    /root/network_config/change_network.sh
+    /root/network_config/cover.sh
+    /root/network_config/restart_udev.sh
+    /usr/local/bin/update_dev_id.sh
+    /usr/local/bin/restart_sftp_cont.sh
+    /root/device_config
+    cat /root/crontab.txt >>/var/spool/cron/root
+    rm -fr /root/factory_flag
+    rm -fr /root/network_config
+    rm -fr /root/device_config
+    rm -fr /root/crontab.txt
+fi

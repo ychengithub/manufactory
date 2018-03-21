@@ -238,4 +238,5 @@ log_info "install on $dstdev done"
 dialog --backtitle "ISP Installation System" --title "$ISP Installation " --msgbox "Install on $dstdev finished \n\nPress OK to reboot system" 5 60
 exec 3>&1 1>>${logfile} 2>&1
 vgchange -an $vg
+sync
 reboot -fn

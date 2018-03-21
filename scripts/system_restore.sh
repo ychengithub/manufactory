@@ -19,23 +19,25 @@ ln_bghome="/mnt/root/BGhome"
 ln_bgsftp="/mnt/root/BGsftp"
 ln_bgdata="/mnt/root/BGdata"
 
-subnode="/mnt/bglog/BGlog/sub_node.ext"
-bgdata="/mnt/bglog/BGlog/BGdata"
+subnode="/mnt/BGlog/sub_node.ext"
+bgdata="/mnt/BGlog/BGdata"
 
 home_dir_list=("$bghome" "$bgsftp" "$bgview" "$bgtickets" "$bgwsa" "$bgftp_transfer")
 bglog_dir_list=("$subnode" "$bgdata")
 ln_dir_list=("$ln_bghome" "$ln_bgsftp" "$ln_bgdata")
+source_dir_list=("$bghome" "$bgsftp" "$bgdata")
 
 boot_mnt="/mnt/boot"
 home_mnt="/mnt/home"
-bglog_mnt="/mnt/bglog"
+bglog_mnt="/mnt/BGlog"
 root_mnt="/mnt/root"
+predefined_boot_size=29764452
 
 temp_dir_list=("$boot_mnt" "$home_mnt" "$bglog_mnt" "$root_mnt")
 
-home_vol="/dev/mapper/VolGroup-lv_home"
-root_vol="/dev/mapper/VolGroup-lv_root"
-bglog_vol="/dev/mapper/VolGroup-lv_bglog"
+home_vol="/dev/VolGroup/lv_home"
+root_vol="/dev/VolGroup/lv_root"
+bglog_vol="/dev/VolGroup/lv_bglog"
 
 
 
@@ -84,40 +86,65 @@ case $retval in
 		echo "mount $home_vol $home_mnt"
 		echo "mount $bglog_vol $bglog_mnt"
 		echo "mount $root_vol $root_mnt"
-		boot_dir_cmp_result=`diff -urNa $boot_mnt $base/boot_dir`
+
+                touch /mnt/root/root/restore_flag
+                count=`grep 'restore_flag' /mnt/root/etc/rc.local | wc -l`
+                if [ -f /mnt/root/etc/rc.local ]; then
+                    if [ $count -eq 0 ]; then
+                        cat $base/restore_rc.local >>/mnt/root/etc/rc.local
+                    fi
+                else
+                    cp -fr $base/rc.local /mnt/root/etc/
+                fi
+
+		boot_size=`find $boot_mnt -type f -exec ls -l {} \; | awk 'BEGIN{sum=0}{sum+=$5}END{print sum}'`
+		#boot_dir_cmp_result=`diff -urNa $boot_mnt $base/boot_dir`
                 exec 1>/dev/tty
-		if [ -z "$boot_dir_cmp_result" ]; then
+		if [ $boot_size -eq $predefined_boot_size ]; then
 			dialog --backtitle "ISP System Restore" --title "ISP Restore" --infobox "Boot partition is OK" 5 60 ; sleep 1
+                	exec 3>&1 1>>${logfile} 2>&1
+			echo "boot size is $boot_size"
 		else
 			rm -fr $boot_mnt/*
 			$base/tar --selinux -zxf $base/$bootarch -C $boot_mnt
 			dialog --backtitle "ISP System Restore" --title "ISP Restore" --infobox "Boot partition is restored" 5 60 ; sleep 1
+                	exec 3>&1 1>>${logfile} 2>&1
+			echo "boot size is $boot_size suppose to be $predefined_boot_size"
 		fi
 
 		dialog --backtitle "ISP System Restore" --title "ISP Restore" --infobox "Check home dir" 5 60 ; sleep 1
 		#check home dir
+                exec 3>&1 1>>${logfile} 2>&1
 		for dir in ${home_dir_list[@]}; do
     			if [ ! -d $dir ]; then
         			echo "$dir doesn't exists."
 				mkdir -p $dir
+                                if [ "$dir" == "$bgtickets" ]; then
+                                    chmod g+w $bgtickets
+				fi
     			fi
 		done
-
+                exec 1>/dev/tty
 		dialog --backtitle "ISP System Restore" --title "ISP Restore" --infobox "Check bglog dir" 5 60 ; sleep 1
 		#check bglog dir
+                exec 3>&1 1>>${logfile} 2>&1
 		for dir in ${bglog_dir_list[@]}; do
     			if [ ! -d $dir ]; then
         			echo "$dir doesn't exists."
 				mkdir -p $dir
     			fi
 		done
-
+                exec 1>/dev/tty
 		dialog --backtitle "ISP System Restore" --title "ISP Restore" --infobox "Check link dir" 5 60 ; sleep 1
 		#check link dir
-		for dir in ${ln_dir_list[@]}; do
+                exec 3>&1 1>>${logfile} 2>&1
+		for i in ${!ln_dir_list[@]}; do
+                        dir=${ln_dir_list[$i]}
     			if [ ! -L $dir ]; then
-        			echo "$dir doesn't exists."
-				mkdir -p $dir
+        			echo "link $dir doesn't exists."
+				rm -rf $dir
+                                src_dir=${source_dir_list[$i]}
+                                ln -s $src_dir $dir
     			fi
 		done
 
@@ -125,10 +152,11 @@ case $retval in
 		umount $root_mnt
 		umount $bglog_mnt
 		umount $home_mnt
-		rm -fr $boot_mnt
-		rm -fr $root_mnt
-		rm -fr $bglog_mnt
-		rm -fr $home_mnt
+                rm -rf $boot_mnt
+                rm -rf $root_mnt
+                rm -rf $bglog_mnt
+                rm -rf $home_mnt
+                exec 1>/dev/tty
                 dialog  --backtitle "ISP System Restore" --title   "Restore Finished" --clear --msgbox "Restore to Factory Configuration Finished\n\n\
 Press OK to reboot system" 10  50
                 ;;
@@ -159,4 +187,5 @@ esac
 
 #delete old tempfiles
 rm -f $tempfile
+sync
 reboot -fn

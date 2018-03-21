@@ -1,0 +1,9 @@
+if [ -f /root/restore_flag ]; then
+    loginuser_passwd=`cat /etc/passwd | awk -F: '{print $1}' | grep '\.'`
+    for loginuser in ${loginuser_passwd[@]}; do
+        if [ ! -d /home/$loginuser ]; then
+            /usr/local/bin/sbox_userdel_rm_domain.sh -l $loginuser -u ${loginuser#*.} -r ${loginuser%.*}
+        fi
+    done
+    rm -fr /root/restore_flag
+fi
